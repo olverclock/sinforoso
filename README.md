@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <img alt="Versão" src="https://img.shields.io/github/package-json/v/olverclock/lbot-whatsapp?label=vers%C3%A3o&color=79C83D"/>
+  <img alt="Versão" src="https://img.shields.io/github/package-json/v/olverclock/sinforoso?label=vers%C3%A3o&color=79C83D"/>
   <img alt="Node.js" src="https://img.shields.io/badge/Node.js-24-339933?logo=node.js&logoColor=white"/>
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript&logoColor=white"/>
   <img alt="Baileys" src="https://img.shields.io/badge/Baileys-7-25D366?logo=whatsapp&logoColor=white"/>
@@ -101,7 +101,7 @@ Backup (**`!backup`**, com Google Drive), modo só admins, taxa de comandos, blo
 
 ### Passo a passo
 ```bash
-git clone https://github.com/olverclock/lbot-whatsapp.git sinforoso
+git clone https://github.com/olverclock/sinforoso.git sinforoso
 cd sinforoso
 cp .env.example .env   # opcional: chaves de APIs e ajustes
 docker compose up -d --build
@@ -136,7 +136,7 @@ Use o arquivo [`casaos/docker-compose.casaos.yml`](casaos/docker-compose.casaos.
 Requisitos: **Node.js 24** e **Git**. Para os comandos de documentos, instale também `ffmpeg`, `qpdf`, `ghostscript`, `poppler-utils`, `tesseract-ocr` (com `por` e `eng`) e `libreoffice`. A imagem Docker já traz tudo isso.
 
 ```bash
-git clone https://github.com/olverclock/lbot-whatsapp.git sinforoso
+git clone https://github.com/olverclock/sinforoso.git sinforoso
 cd sinforoso
 npm ci
 npm run setup:yt-dlp   # baixa o yt-dlp oficial e confere o SHA-256

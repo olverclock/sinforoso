@@ -42,7 +42,7 @@ const infoCommands = {
             reply_title:"*Nome do bot*: {$1}\n"+
             "*Online desde*: {$2}\n"+
             "*Versão*: {$3}\n"+
-            "*GitHub*: https://github.com/olverclock/lbot-whatsapp\n"+
+            "*GitHub*: https://github.com/olverclock/sinforoso\n"+
             "*Comandos executados*: *{$4}*\n"+
             "*Contato do administradores*:\n{$5}\n",
             reply_title_resources: '🤖 *Recursos do bot*\n\n',

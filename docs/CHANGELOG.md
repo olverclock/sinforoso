@@ -33,6 +33,12 @@ Colocarei neste arquivos as mudanças significativas em cada versão começando 
 - **!sorteio premio** (no privado): guarda o prêmio antes e devolve um código; `!sorteio novo CÓDIGO | 1h` (ou o nome do prêmio) cria o sorteio já vinculado, com entrega automática. `!sorteio premios` e `!sorteio apagar`.
 - Sorteio sem prêmio guardado: o organizador recebe no privado quem ganhou, para entregar manualmente.
 - Os subcomandos do !sorteio aceitam quebra de linha (ex.: a chave colada na linha de baixo).
+- Comandos copiados das mensagens do bot com negrito (ex.: `*!sorteio relampago* CÓDIGO`) funcionam: o asterisco que fecha o negrito não gruda mais no argumento.
+
+### SEGURANÇA
+- Corrigida falha herdada: o bot dava **admin e até dono** a qualquer pessoa que usasse o **mesmo nome** do admin no WhatsApp. Agora a mesma pessoa em LID e em número é reconhecida só pela ligação oficial do WhatsApp.
+- **!info** mostra só telefones de verdade, uma vez por pessoa (o LID, ID interno do WhatsApp, não aparece mais como se fosse celular). **!admins** indica quando dois registros são a mesma conta.
+- **!rmadmin** remove marcas de dono copiadas por versões antigas (sem remover o próprio dono nem o último dono) e não trava com número de lista inexistente.
 - Sorteio verificável (compromisso SHA-256 + semente revelada, escolha sem viés) com `!sorteio verificar`.
 - Encerramento no horário mesmo após reinício; fila por sorteio impede dois vencedores e inscrições duplicadas.
 - O `!sorteio 100` antigo continua igual.

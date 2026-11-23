@@ -436,7 +436,7 @@ export async function musicLyrics(text: string) {
     try {
         const { data: songs } = await axios.get(`https://lrclib.net/api/search?q=${encodeURIComponent(text)}`, {
             timeout: HTTP_TIMEOUT.api,
-            headers: { 'User-Agent': 'Sinforoso-WhatsApp-Bot (https://github.com/olverclock/lbot-whatsapp)' }
+            headers: { 'User-Agent': 'Sinforoso-WhatsApp-Bot (https://github.com/olverclock/sinforoso)' }
         })
         const song = (songs as { trackName: string, artistName: string, plainLyrics?: string | null, instrumental?: boolean }[])
             .find(item => !item.instrumental && item.plainLyrics?.trim())
