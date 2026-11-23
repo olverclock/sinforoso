@@ -4,6 +4,7 @@ import { Message } from "../interfaces/message.interface.js";
 import { Group } from "../interfaces/group.interface.js";
 import { User } from "../interfaces/user.interface.js";
 import * as waUtil from "../utils/whatsapp.util.js";
+import { phoneOf } from "../utils/identity.util.js";
 import { buildText, getCurrentBotVersion, showConsoleError, timestampToDate } from "../utils/general.util.js";
 import { messageErrorCommandUsage } from "../utils/commands.util.js";
 import { UserController } from "../controllers/user.controller.js";
@@ -15,7 +16,10 @@ export async function infoCommand(client: WASocket, botInfo: Bot, message: Messa
     const userController = new UserController()
     const blockedUsers = await waUtil.getBlockedContacts(client)
     const adminsBot = await userController.getAdmins()
-    const adminsBotContacts = adminsBot.map((admin: User) => `- wa.me/${waUtil.removeWhatsappSuffix(admin.id)}\n`)
+    // Só números de telefone de verdade, uma vez por pessoa: o LID (ID interno do WhatsApp) não é
+    // telefone e o link wa.me com ele não abre conversa com ninguém.
+    const adminPhones = [...new Set(adminsBot.map((admin: User) => phoneOf(admin.id)).filter((p): p is string => !!p))]
+    const adminsBotContacts = adminPhones.map(phone => `- wa.me/${phone}\n`).join('')
 
     let version = getCurrentBotVersion()
     let botStartedAt = timestampToDate(botInfo.started)

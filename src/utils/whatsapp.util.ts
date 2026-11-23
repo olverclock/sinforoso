@@ -7,7 +7,7 @@ import * as convertLibrary from './convert.util.js'
 import { Group } from "../interfaces/group.interface.js"
 import { removeBold } from "./general.util.js"
 import NodeCache from "node-cache"
-import { linkIds } from "./identity.util.js"
+import { linkIds, sameUser } from "./identity.util.js"
 
 /**
  * Ouvinte chamado após cada mensagem enviada por sendText/replyText (usado pelo
@@ -501,9 +501,11 @@ function parseCommandText(text: string) {
 /** O bot (hostId) é sempre admin e dono; os demais, conforme a lista de admins do bot. */
 function botPermissions(sender: string, hostId: string, botAdmins: User[]) {
     const isHost = sender === normalizeJid(hostId)
+    // sameUser: o admin cadastrado pelo número também vale quando a mensagem chega pelo LID (e vice-versa),
+    // pela ligação que o próprio WhatsApp informa (participantAlt/remoteJidAlt), nunca pelo nome.
     return {
-        isBotAdmin: isHost || botAdmins.some(admin => admin.id === sender),
-        isBotOwner: isHost || botAdmins.some(admin => admin.owner && admin.id === sender),
+        isBotAdmin: isHost || botAdmins.some(admin => sameUser(admin.id, sender)),
+        isBotOwner: isHost || botAdmins.some(admin => admin.owner && sameUser(admin.id, sender)),
     }
 }
 

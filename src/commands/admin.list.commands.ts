@@ -65,10 +65,12 @@ const adminCommands = {
         guide: `Ex: *{$p}admins* - Lista os administradores do bot e quem é o dono.\n\n*Quem pode*: só *administradores do bot*.\n`,
         msgs: {
             reply_title: `⭐ *Admins do bot* ({$1})\n\n`,
-            reply_item: '- *ID*: {$1}\n' +
+            reply_item: '- *Nº*: {$1}\n' +
                 '- *Nome*: {$2}\n' +
-                '- *Contato*: +{$3}\n' +
-                `- *Tipo*: {$4}\n\n`
+                '- *Contato*: {$3}\n' +
+                `- *Tipo*: {$4}{$5}\n\n`,
+            no_phone: 'sem número (ID interno do WhatsApp, não é telefone)',
+            same_person: '\n- *Mesma pessoa que o Nº {$1}* (o WhatsApp usa dois IDs para a mesma conta)'
         },
         function: adminFunctions.adminsCommand
     },

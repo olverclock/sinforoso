@@ -11,6 +11,7 @@ import { adminMenu } from "../helpers/menu.builder.helper.js";
 import os from 'node:os'
 import moment from "moment";
 import * as waUtil from "../utils/whatsapp.util.js";
+import { phoneOf, sameUser } from "../utils/identity.util.js";
 import botTexts from "../helpers/bot.texts.helper.js";
 import adminCommands from "./admin.list.commands.js";
 import { commandExist, getCommandsByCategory, messageErrorCommandUsage } from "../utils/commands.util.js";
@@ -137,7 +138,11 @@ export async function adminsCommand(client: WASocket, _botInfo: Bot, message: Me
     adminsBot.forEach((admin: User) => {
         const adminNumberList = adminsBot.indexOf(admin) + 1
         const userType = admin.owner ? botTexts.user_types.owner : (admin.admin ? botTexts.user_types.admin : botTexts.user_types.user)
-        replyText += buildText(adminCommands.admins.msgs.reply_item, adminNumberList, admin.name, waUtil.removeWhatsappSuffix(admin.id), userType)
+        const phone = phoneOf(admin.id)
+        const contact = phone ? `+${phone}` : adminCommands.admins.msgs.no_phone
+        const twin = adminsBot.findIndex(other => other !== admin && sameUser(other.id, admin.id))
+        const same = twin >= 0 ? buildText(adminCommands.admins.msgs.same_person, twin + 1) : ''
+        replyText += buildText(adminCommands.admins.msgs.reply_item, adminNumberList, admin.name, contact, userType, same)
     })
 
     await waUtil.replyText(client, message.chat_id, replyText, message.wa_message, { expiration: message.expiration })
@@ -185,7 +190,6 @@ export async function rmadminCommand(client: WASocket, botInfo: Bot, message: Me
     }
 
     const currentAdmins = await userController.getAdmins()
-    const ownerData = await userController.getOwner()
     const currentAdminsId = currentAdmins.map((user: User) => user.id)
     let targetUserId: string
 
@@ -194,7 +198,9 @@ export async function rmadminCommand(client: WASocket, botInfo: Bot, message: Me
     } else if (message.mentioned.length) {
         targetUserId = message.mentioned[0]
     } else if (message.args.length == 1 && message.args[0].length <= 3) {
-        targetUserId = currentAdmins[parseInt(message.text_command) - 1].id
+        const byIndex = currentAdmins[parseInt(message.text_command) - 1]
+        if (!byIndex) throw new Error(adminCommands.rmadmin.msgs.error_not_admin)
+        targetUserId = byIndex.id
     } else if (message.args.length) {
         targetUserId = waUtil.addWhatsappSuffix(message.text_command)
     } else {
@@ -207,7 +213,9 @@ export async function rmadminCommand(client: WASocket, botInfo: Bot, message: Me
         throw new Error(adminCommands.rmadmin.msgs.error_user_not_found)
     } else if (!currentAdminsId.includes(userData.id)) {
         throw new Error(adminCommands.rmadmin.msgs.error_not_admin)
-    } else if (ownerData?.id == userData.id) {
+    } else if (userData.owner && (sameUser(userData.id, message.sender) || !currentAdmins.some(a => a.owner && !sameUser(a.id, userData.id)))) {
+        // Não remove o próprio dono que está usando o comando, nem o último dono. Outras marcas de
+        // dono (ex.: copiadas pelo nome em versões antigas) podem ser removidas.
         throw new Error(adminCommands.rmadmin.msgs.error_demote_owner)
     }
 

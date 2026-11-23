@@ -62,21 +62,10 @@ export class UserService {
             await this.setName(normalizedUserId, name)
         }
 
-        // Auto-Sync Admin: Garantir que privilégios sejam espelhados entre IDs (Ex: Celular LID <-> Web JID)
-        // Só tenta sincronizar se o usuário atual NÃO for admin mas existir outro com mesmo nome que SEJA
-        if (name && name !== 'Usuário') {
-            await this.autoSyncAdmin(normalizedUserId, name)
-        }
-    }
-
-    private async autoSyncAdmin(userId: string, name: string) {
-        const currentUser = await this.getUser(userId)
-        if (currentUser && currentUser.admin) return // Já é admin, nada a fazer
-
-        const existingAdmin = await db.findOneAsync({ name: name, admin: true, id: { $ne: userId } }) as User | null
-        if (existingAdmin) {
-            await db.updateAsync({ id: userId }, { $set: { admin: true, owner: existingAdmin.owner } })
-        }
+        // Segurança: antes, o admin era copiado para qualquer pessoa com o MESMO NOME no WhatsApp
+        // (o nome qualquer um escolhe), o que dava admin e até dono a desconhecidos. Agora a mesma
+        // pessoa em LID e em número de telefone é reconhecida pela ligação oficial do WhatsApp
+        // (utils/identity.util.ts), sem copiar privilégios no banco.
     }
 
     public async migrateUsers() {
@@ -101,7 +90,8 @@ export class UserService {
 
     public async setAdmin(userId: string, admin: boolean) {
         // Usar upsert para garantir que o usuário seja criado se ainda não existir
-        await db.updateAsync({ id: normalizeJid(userId) }, { $set: { admin } }, { upsert: true })
+        // Remover o admin também remove a marca de dono (o !rmadmin impede remover o último dono)
+        await db.updateAsync({ id: normalizeJid(userId) }, { $set: admin ? { admin } : { admin: false, owner: false } }, { upsert: true })
     }
 
     public async getAdmins() {
