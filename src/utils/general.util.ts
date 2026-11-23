@@ -260,7 +260,7 @@ export function getRandomFilename(ext: FileExtensions) {
  * função apaga os seus, mas um erro no meio do caminho ou um reinício do bot pode deixar sobras.
  * Devolve quantos arquivos foram removidos.
  */
-export function cleanupOldTempFiles(maxAgeMs = 60 * 60 * 1000, dirs = [path.join(tmpdir(), 'lbot-whatsapp')], now = Date.now()): number {
+export function cleanupOldTempFiles(maxAgeMs = 60 * 60 * 1000, dirs = [path.join(tmpdir(), 'sinforoso')], now = Date.now()): number {
   let removed = 0
   for (const dir of dirs) {
     if (!fs.existsSync(dir)) continue
@@ -284,11 +284,11 @@ export function cleanupOldTempFiles(maxAgeMs = 60 * 60 * 1000, dirs = [path.join
 }
 
 export function getTempPath(ext: FileExtensions) {
-  if (!fs.existsSync(path.join(tmpdir(), 'lbot-whatsapp'))) {
-    fs.mkdirSync(path.join(tmpdir(), 'lbot-whatsapp'))
+  if (!fs.existsSync(path.join(tmpdir(), 'sinforoso'))) {
+    fs.mkdirSync(path.join(tmpdir(), 'sinforoso'))
   }
 
-  return path.join(tmpdir(), 'lbot-whatsapp', `${crypto.randomBytes(20).toString('hex')}.${ext}`)
+  return path.join(tmpdir(), 'sinforoso', `${crypto.randomBytes(20).toString('hex')}.${ext}`)
 }
 
 export function deepMerge<T>(defaultObj: T, overrideObj: unknown): T {

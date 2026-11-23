@@ -91,7 +91,8 @@ export async function brasileiraoCommand(client: WASocket, botInfo: Bot, message
         throw new Error(utilityCommands.brasileirao.msgs.error_rounds_not_found)
     }
 
-    const [round] = rounds.filter(round => round.rodada_atual === true)
+    const round = rounds.find(round => round.rodada_atual === true) ?? rounds[rounds.length - 1]
+    if (!round) throw new Error(utilityCommands.brasileirao.msgs.error_rounds_not_found)
     const { partidas: matches } = round
     let replyText = buildText(utilityCommands.brasileirao.msgs.reply_title, serieSelected)
 

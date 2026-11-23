@@ -1,8 +1,8 @@
-# Bot Sinforoso (lbot-whatsapp) - Análise Técnica
+# Bot Sinforoso - Análise Técnica
 
 ## Visão Geral do Projeto
-**Nome**: lbot-whatsapp
-**Versão**: 3.4.6
+**Nome**: sinforoso
+**Versão**: 3.6.0
 **Tecnologias Principais**: TypeScript, Node.js, Baileys (WhatsApp Web API), NeDB (Banco de Dados)
 
 ## Arquitetura
@@ -17,7 +17,7 @@
 ## URLs e APIs Identificadas
 
 ### APIs Críticas
-1.  **Chaves Deepgram & ACRCloud**: `https://dub.sh/lbot-api-keys`
+1.  **Chaves Deepgram & ACRCloud**: link encurtado antigo (não é mais usado)
     -   Usado para buscar chaves dinâmicas para transcrição de áudio e reconhecimento de música.
     -   *Status*: **Operacional** (Disponível/JSON Válido).
 2.  **The Movie DB**: `https://api.themoviedb.org`

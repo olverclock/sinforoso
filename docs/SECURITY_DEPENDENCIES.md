@@ -74,7 +74,7 @@
 
 ## 7. Troca de serviços quebrados por gratuitos (18/11/2026)
 
-- **Removidas:** `genius-lyrics`, `@vitalets/google-translate-api`, `@victorsouzaleal/googlethis`, `instagram-url-direct`, `yt-search`, `@deepgram/sdk`, `form-data` e `@types/yt-search` (58 pacotes).
+- **Removidas:** `genius-lyrics`, `@vitalets/google-translate-api`, `googlethis`, `instagram-url-direct`, `yt-search`, `@deepgram/sdk`, `form-data` e `@types/yt-search` (58 pacotes).
 - **Adicionadas:** `@gradio/client` 2.7.2 (ISC, cliente oficial do Gradio) e `shazamio-core` 1.3.1 (MIT, WASM).
 - **yt-dlp:** binário oficial 2026.10.26, baixado por `scripts/install-yt-dlp.mjs`. O script confere o SHA-256 com o `SHA2-256SUMS` da própria release, e o binário fica em `bin/`, que está no `.gitignore`.
 - `npm audit --omit=dev`: 0 vulnerabilidades.

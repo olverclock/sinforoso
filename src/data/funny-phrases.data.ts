@@ -1,0 +1,63 @@
+/*
+ * Frases "duvidosas" do Sinforoso Jr (!frase): modelos com lacunas {p1}, {p2} e {p3}, completadas
+ * com complementos sorteados (sem repetir na mesma frase). Conteúdo próprio, local e sem ofensas:
+ * antes o texto era baixado de um arquivo externo a cada uso.
+ */
+
+export const FUNNY_TEMPLATES: string[] = [
+    "Hoje acordei com uma vontade enorme de {p1}.",
+    "Minha mãe sempre dizia: na dúvida, escolha {p1}.",
+    "O segredo do sucesso? {p1}. Ninguém te conta isso.",
+    "Se a vida te der limões, troque por {p1}.",
+    "Nada como um domingo à tarde com {p1} e {p2}.",
+    "Cientistas confirmam: {p1} é melhor que {p2}.",
+    "Eu não sou preguiçoso, só estou economizando energia para {p1}.",
+    "No meu currículo coloquei: especialista em {p1}.",
+    "Meu horóscopo disse que hoje vou encontrar {p1}.",
+    "Plano para o fim de semana: {p1}, {p2} e talvez {p3}.",
+    "A diferença entre mim e um gênio? {p1}.",
+    "Quando ninguém está olhando, eu treino {p1}.",
+    "Meu maior medo é {p1} no meio da reunião.",
+    "Não confie em quem não gosta de {p1}.",
+    "O Wi-Fi caiu e agora só me resta {p1}.",
+    "Se eu ganhar na loteria, a primeira coisa que compro é {p1}.",
+    "Minha dieta é simples: {p1} de manhã e {p2} à noite.",
+    "Dizem que o amor é cego, mas {p1} é pior.",
+    "Fui ao médico e ele receitou {p1} três vezes ao dia.",
+    "Meu superpoder secreto é {p1}.",
+    "Na próxima encarnação quero voltar como {p1}.",
+    "A culpa não é minha, é de {p1}.",
+    "Antes de dormir, sempre penso em {p1}.",
+    "Meu grupo da família só fala de {p1} e {p2}.",
+    "Primeira regra do clube: não falar sobre {p1}.",
+    "O que eu levaria para uma ilha deserta? {p1}, com certeza.",
+    "Meu chefe me pegou {p1} de novo.",
+    "Respeite os mais velhos e também {p1}.",
+    "Se for para errar, que seja com {p1}.",
+    "Já tentei de tudo, só falta {p1}.",
+    "Minha senha do Wi-Fi é o nome de {p1}.",
+    "Uma pesquisa revelou que 9 em cada 10 pessoas preferem {p1}.",
+    "Eu e {p1}: uma história de amor que ninguém entende.",
+    "A vida é curta demais para não experimentar {p1}.",
+    "No fundo, todo mundo quer {p1}.",
+    "Meu professor de física desistiu de mim por causa de {p1}.",
+    "Comprei um curso online de {p1} e não terminei a primeira aula.",
+    "O que não mata engorda, e o que não engorda é {p1}.",
+    "Atenção: o Sinforoso Jr não se responsabiliza por {p1}.",
+    "Às vezes eu paro e penso: e se fosse {p1}?",
+]
+
+export const FUNNY_COMPLEMENTS: string[] = [
+    "um pastel de vento", "dançar forró sozinho", "a tia do zap", "um boleto vencido", "o Wi-Fi do vizinho",
+    "pão de queijo frio", "um pato de borracha", "cochilar no ônibus", "o controle remoto perdido", "um carregador emprestado",
+    "fazer trilha de chinelo", "a playlist sertaneja do tio", "um gato que se acha cachorro", "cantar no chuveiro", "o grupo da família",
+    "uma pizza de abacaxi", "acordar às 5 da manhã", "o despertador no modo soneca", "um bolo de caneca", "a fila do banco",
+    "um guarda-chuva quebrado", "ver novela mexicana", "a meia sem par", "um café sem açúcar", "o pombo da praça",
+    "falar sozinho no mercado", "um sofá que engole moedas", "a última coxinha da festa", "um áudio de 7 minutos", "dormir de meia",
+    "o tutorial do YouTube", "um sapato apertado", "assistir série até de madrugada", "o miojo das 3 da manhã", "uma planta de plástico",
+    "o vizinho da furadeira", "um chinelo voador", "a promoção que acabou ontem", "um bigode de leite", "fazer cara de paisagem",
+    "um teclado sem a tecla A", "a caneta que não escreve", "a figurinha repetida", "um pudim de padaria", "pedir desconto no camelô",
+    "um gatinho no teclado", "a novela das nove", "um tênis de luzinha", "o elevador quebrado", "dar bom dia para o espelho",
+    "uma pipoca queimada", "o carro de som da pamonha", "um pen drive de 2 GB", "a senha esquecida", "comer farofa de colher",
+    "um mapa de cabeça para baixo", "o cachorro do vizinho", "uma bicicleta sem freio", "o calendário do ano passado", "um sorvete derretido",
+]

@@ -35,6 +35,10 @@ Colocarei neste arquivos as mudanças significativas em cada versão começando 
 - Os subcomandos do !sorteio aceitam quebra de linha (ex.: a chave colada na linha de baixo).
 - Comandos copiados das mensagens do bot com negrito (ex.: `*!sorteio relampago* CÓDIGO`) funcionam: o asterisco que fecha o negrito não gruda mais no argumento.
 
+- **!brasileirao** com implementação própria (sem biblioteca externa) e na **temporada atual**: o ID do campeonato é lido da página oficial do Terra (antes ficava preso em 2025).
+- **!ddd**, **!tabela** e **!frase** com dados locais (sem baixar arquivos externos a cada uso). O !frase ganhou frases e complementos novos, sem ofensas.
+- Pasta temporária renomeada para `sinforoso`.
+
 ### SEGURANÇA
 - Corrigida falha herdada: o bot dava **admin e até dono** a qualquer pessoa que usasse o **mesmo nome** do admin no WhatsApp. Agora a mesma pessoa em LID e em número é reconhecida só pela ligação oficial do WhatsApp.
 - **!info** mostra só telefones de verdade, uma vez por pessoa (o LID, ID interno do WhatsApp, não aparece mais como se fosse celular). **!admins** indica quando dois registros são a mesma conta.
@@ -331,7 +335,7 @@ Colocarei neste arquivos as mudanças significativas em cada versão começando 
 
 ### GERAL
 - O projeto foi totalmente reescrito para Typescript.
-- Agora o projeto utiliza a [**biblioteca-lbot**](https://www.npmjs.com/package/@victorsouzaleal/biblioteca-lbot) para obter dados externos para os comandos.
+- Agora o projeto utiliza uma biblioteca própria de dados externos para os comandos.
 - Adicionada verificação de versão ao iniciar e se for possível ele fará a atualização automaticamente.
 - O visual dos menus e das mensagens de resposta foram reformulados.
 - Adicionado suporte a chats que tem mensagens temporárias que desaparecem com o tempo.

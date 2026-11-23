@@ -136,7 +136,7 @@ test("execução: argumentos não passam por shell e a pasta de trabalho é semp
     await assert.rejects(runTool("pdftotext", ["nao-existe; echo INJETADO $(whoami)", "-"]), DocumentToolError)
   })
   assert.equal(fs.existsSync(workdir), false)
-  assert.ok(workdir.startsWith(path.join(os.tmpdir(), "lbot-whatsapp", "docs")))
+  assert.ok(workdir.startsWith(path.join(os.tmpdir(), "sinforoso", "docs")))
 })
 
 // ———————————————— OPERAÇÕES REAIS ————————————————

@@ -39,10 +39,20 @@ test("convertCurrency: converte e formata cada moeda", async () => {
   assert.equal(r.convertion[0].updated, "17/11/2026 às 10:30:00");
 });
 
-test("infoDDD: encontra estado e região; DDD inexistente devolve null", async () => {
-  mock.method(axios, "get", respond({ "ddd.json": { estados: [{ ddd: ["11", "12"], nome: "São Paulo", regiao: "Sudeste" }] } }));
+test("infoDDD: dados locais da Anatel (67 DDDs, sem download); DDD inexistente devolve null", async () => {
+  const get = mock.method(axios, "get", async () => { throw new Error("não deveria acessar a internet") });
   assert.deepEqual(await misc.infoDDD("11"), { state: "São Paulo", region: "Sudeste" });
-  assert.equal(await misc.infoDDD("99"), null);
+  assert.deepEqual(await misc.infoDDD("61"), { state: "Distrito Federal", region: "Centro-Oeste" });
+  assert.deepEqual(await misc.infoDDD("99"), { state: "Maranhão", region: "Nordeste" });
+  assert.deepEqual(await misc.infoDDD("86"), { state: "Piauí", region: "Nordeste" });
+  assert.equal(await misc.infoDDD("20"), null, "20 não é DDD");
+  assert.equal(await misc.infoDDD("1"), null);
+  const { DDD_STATES } = await import("../src/data/ddd.data.js");
+  const all = DDD_STATES.flatMap(s => s.ddds);
+  assert.equal(all.length, 67, "o Brasil tem 67 DDDs");
+  assert.equal(new Set(all).size, 67, "nenhum DDD em dois estados");
+  assert.equal(DDD_STATES.length, 27, "26 estados + DF");
+  assert.equal(get.mock.callCount(), 0);
 });
 
 test("wheatherInfo: monta clima atual e previsão em português", async () => {
@@ -138,13 +148,15 @@ test("moviedbTrendings, shortenUrl e symbolsASCI", async () => {
   mock.method(axios, "get", respond({
     "themoviedb": { results: [{ title: "Filme X", overview: "Resumo" }, { name: "Série Y", overview: "Outro" }] },
     "tinyurl": "https://tinyurl.com/abc",
-    "tabela.txt": "★ ☆ ✓",
   }));
   const trend = await misc.moviedbTrendings("movie");
   assert.match(trend, /1°: \*Filme X\.\*/);
   assert.match(trend, /Série Y/);
   assert.equal(await misc.shortenUrl("https://exemplo.com"), "https://tinyurl.com/abc");
-  assert.equal(await misc.symbolsASCI(), "★ ☆ ✓");
+  const table = await misc.symbolsASCI();
+  assert.match(table, /^SÍMBOLOS/);
+  assert.ok(table.includes("★") && table.includes("♡") && table.includes("➤"), "tabela local com estrelas, corações e setas");
+  assert.ok(!(axios.get as unknown as { mock: { calls: { arguments: unknown[] }[] } }).mock.calls.some(c => String(c.arguments[0]).includes("gist")), "não baixa mais a tabela");
 });
 
 test("simSimi: resposta e mensagem de erro do serviço", async () => {
@@ -162,10 +174,10 @@ test("simSimi: resposta e mensagem de erro do serviço", async () => {
 
 test("comandos utilitários pelo fluxo real", async () => {
   mock.method(axios, "post", async () => ({ data: { result: "42" } }));
-  mock.method(axios, "get", respond({ "ddd.json": { estados: [{ ddd: ["81"], nome: "Pernambuco", regiao: "Nordeste" }] }, "tinyurl": "https://tinyurl.com/x", "tabela.txt": "☺" }));
+  mock.method(axios, "get", respond({ "tinyurl": "https://tinyurl.com/x" }));
   const f = fakeClient();
   const from = user(401);
-  for (const [command, expected] of [["!calc 40+2", /42/], ["!ddd 81", /Pernambuco/], ["!encurtar https://exemplo.com", /tinyurl\.com\/x/], ["!tabela", /☺/]] as const) {
+  for (const [command, expected] of [["!calc 40+2", /42/], ["!ddd 81", /Pernambuco/], ["!encurtar https://exemplo.com", /tinyurl\.com\/x/], ["!tabela", /SÍMBOLOS[\s\S]*★/]] as const) {
     f.reset();
     await send(f, { from, text: command });
     assert.match(f.output(), expected, command);
@@ -195,3 +207,17 @@ test("clima: cidade com acento é encontrada (busca sem acento) e nunca troca po
   assert.equal(await misc.resolveWeatherLocation("Cidade Inexistente"), "Cidade Inexistente", "sem resultado: usa o texto sem acento")
   assert.equal(misc.stripAccents("São João da Aliança, Goiás"), "Sao Joao da Alianca, Goias")
 })
+
+test("frase do Sinforoso Jr: local, todas as lacunas preenchidas e sem repetir complemento", async () => {
+  const get = mock.method(axios, "get", async () => { throw new Error("não deveria acessar a internet") });
+  const { FUNNY_TEMPLATES, FUNNY_COMPLEMENTS } = await import("../src/data/funny-phrases.data.js");
+  assert.ok(FUNNY_TEMPLATES.length >= 30 && FUNNY_COMPLEMENTS.length >= 50);
+  for (let i = 0; i < 300; i++) {
+    const phrase = await misc.funnyRandomPhrases();
+    assert.doesNotMatch(phrase, /\{p\d\}|undefined/, phrase);
+    const parts = [...phrase.matchAll(/\*([^*]+)\*/g)].map(m => m[1]);
+    assert.ok(parts.length >= 1);
+    assert.equal(new Set(parts).size, parts.length, `complemento repetido: ${phrase}`);
+  }
+  assert.equal(get.mock.callCount(), 0);
+});

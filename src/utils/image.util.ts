@@ -111,7 +111,7 @@ export async function animeRecognition(imageBuffer: Buffer) {
 
 /**
  * Busca de imagens no Bing (página pública de resultados; gratuita, sem chave).
- * Antes usava @victorsouzaleal/googlethis, que deixou de funcionar ("Could not execute search").
+ * Antes usava uma biblioteca de busca do Google que deixou de funcionar ("Could not execute search").
  */
 export async function imageSearch(text: string): Promise<ImageSearch[]> {
     try {

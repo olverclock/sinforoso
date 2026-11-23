@@ -182,9 +182,9 @@ Doze comandos falhavam nos testes reais. Todos passaram a usar serviços **gratu
 | `!rbg` | API de remoção de fundo fora do ar | Spaces do Hugging Face: `KenjieDec/RemBG` (CPU, sem cota de GPU), com mais 2 Spaces de reserva |
 | `!qualmusica` | Chaves de terceiros (dub.sh) devolviam 429 | Assinatura de áudio gerada **localmente** pelo `shazamio-core` (MIT) e enviada por HTTPS ao Shazam |
 
-Bibliotecas removidas: `genius-lyrics`, `@vitalets/google-translate-api`, `@victorsouzaleal/googlethis`, `instagram-url-direct`, `yt-search`, `@deepgram/sdk`, `form-data` e `@types/yt-search` (58 pacotes ao todo). Bibliotecas adicionadas: `@gradio/client` 2.7.2 (ISC) e `shazamio-core` 1.3.1 (MIT). Os pacotes `node-shazam` e `shazam-api` foram descartados porque são GPL-2.0, incompatível com a GPL-3.0 do projeto.
+Bibliotecas removidas: `genius-lyrics`, `@vitalets/google-translate-api`, `googlethis`, `instagram-url-direct`, `yt-search`, `@deepgram/sdk`, `form-data` e `@types/yt-search` (58 pacotes ao todo). Bibliotecas adicionadas: `@gradio/client` 2.7.2 (ISC) e `shazamio-core` 1.3.1 (MIT). Os pacotes `node-shazam` e `shazam-api` foram descartados porque são GPL-2.0, incompatível com a GPL-3.0 do projeto.
 
-**SEC-01 resolvido.** O link `dub.sh/lbot-api-keys` não é mais usado. O `!qualmusica` envia só uma assinatura de áudio, não o áudio, e sempre por HTTPS.
+**SEC-01 resolvido.** O link encurtado antigo para obter chaves de API não é mais usado. O `!qualmusica` envia só uma assinatura de áudio, não o áudio, e sempre por HTTPS.
 
 **Configuração (opcional, tudo gratuito):** copie `.env.example` para `.env`. O `npm start` lê esse arquivo com `--env-file-if-exists` do Node.
 

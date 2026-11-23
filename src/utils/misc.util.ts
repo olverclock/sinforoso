@@ -5,7 +5,10 @@ const execPromise = promisify(exec)
 import { prettyNum } from 'pretty-num'
 import qs from 'querystring'
 import { showConsoleLibraryError, timestampToDate, HTTP_TIMEOUT } from './general.util.js'
-import { obterDadosBrasileiraoA, obterDadosBrasileiraoB, DadosBrasileirao } from '@victorsouzaleal/brasileirao'
+import { brasileiraoData } from './brasileirao.util.js'
+import { DDD_STATES } from '../data/ddd.data.js'
+import { SYMBOLS_TABLE } from '../data/symbols.data.js'
+import { FUNNY_COMPLEMENTS, FUNNY_TEMPLATES } from '../data/funny-phrases.data.js'
 import { JSDOM, VirtualConsole } from 'jsdom'
 import UserAgent from 'user-agents'
 import { AnimeRelease, CurrencyConvert, MangaRelease, MusicLyrics, News, WebSearch, Wheather } from '../interfaces/library.interface.js'
@@ -99,7 +102,7 @@ export async function mangaReleases() {
         // MangaDex API: Clean, Ad-free and supports PT-BR officially
         const URL_BASE = 'https://api.mangadex.org/chapter?limit=10&translatedLanguage[]=pt-br&order[readableAt]=desc&includes[]=manga'
         const { data: response } = await axios.get(URL_BASE, { timeout: HTTP_TIMEOUT.api,
-            headers: { "User-Agent": "SinforosoBot/3.0 (+https://github.com/victorsouzaleal/lbot-whatsapp)" }
+            headers: { "User-Agent": "SinforosoBot/3.0 (+https://github.com/olverclock/sinforoso)" }
         })
 
         if (!response || response.result !== 'ok') {
@@ -135,17 +138,8 @@ export async function mangaReleases() {
 
 export async function brasileiraoTable(serie: "A" | "B") {
     try {
-        let table: DadosBrasileirao
-
-        if (serie == "A") {
-            table = await obterDadosBrasileiraoA()
-        } else if (serie == "B") {
-            table = await obterDadosBrasileiraoB()
-        } else {
-            throw new Error("Unsupported league")
-        }
-
-        return table
+        if (serie !== "A" && serie !== "B") throw new Error("Unsupported league")
+        return await brasileiraoData(serie)
     } catch (err) {
         showConsoleLibraryError(err, 'brasileiraoTable')
         throw new Error(botTexts.library_error)
@@ -197,7 +191,7 @@ export async function calcExpression(expr: string) {
 
 /**
  * Manchetes do Google Notícias pelo feed RSS público (gratuito, sem chave).
- * Antes usava @victorsouzaleal/googlethis, que depende de raspar a página do Google.
+ * Antes usava uma biblioteca que raspava a página do Google (parou de funcionar).
  */
 export async function newsGoogle(lang = 'pt') {
     try {
@@ -537,38 +531,13 @@ export async function convertCurrency(currency: "dolar" | "euro" | "real" | "ien
 }
 
 export async function infoDDD(ddd: string) {
-    try {
-        const URL_BASE = 'https://gist.githubusercontent.com/victorsouzaleal/ea89a42a9f912c988bbc12c1f3c2d110/raw/af37319b023503be780bb1b6a02c92bcba9e50cc/ddd.json'
-        const { data: dddResponse } = await axios.get(URL_BASE, { timeout: HTTP_TIMEOUT.api })
-        const states = dddResponse.estados
-        const indexDDD = states.findIndex((state: { ddd: string }) => state.ddd.includes(ddd))
-
-        if (indexDDD === -1) {
-            return null
-        }
-
-        const response = {
-            state: states[indexDDD].nome,
-            region: states[indexDDD].regiao
-        }
-
-        return response
-    } catch (err) {
-        showConsoleLibraryError(err, 'infoDDD')
-        throw new Error(botTexts.library_error)
-    }
+    // Dados locais (Anatel): sem download a cada uso
+    const found = DDD_STATES.find(state => state.ddds.includes(ddd.trim()))
+    return found ? { state: found.state, region: found.region } : null
 }
 
 export async function symbolsASCI() {
-    try {
-        const URL_BASE = 'https://gist.githubusercontent.com/victorsouzaleal/9a58a572233167587e11683aa3544c8a/raw/aea5d03d251359b61771ec87cb513360d9721b8b/tabela.txt'
-        const { data: symbolsResponse } = await axios.get(URL_BASE, { timeout: HTTP_TIMEOUT.api })
-
-        return symbolsResponse as string
-    } catch (err) {
-        showConsoleLibraryError(err, 'symbolsASCI')
-        throw new Error(botTexts.library_error)
-    }
+    return SYMBOLS_TABLE
 }
 
 
@@ -599,27 +568,12 @@ export async function simSimi(text: string) {
 }
 
 export async function funnyRandomPhrases() {
-    try {
-        const URL_BASE = 'https://gist.githubusercontent.com/victorsouzaleal/bfbafb665a35436acc2310d51d754abb/raw/2be5f3b5333b2a9c97492888ed8e63b7c7675ae6/frases.json'
-        let { data } = await axios.get(URL_BASE, { timeout: HTTP_TIMEOUT.api })
-        let responsePhrase = data.frases[Math.floor(Math.random() * data.frases.length)]
-        let cont_params = 1
-
-        if (responsePhrase.indexOf("{p3}") != -1) {
-            cont_params = 3
-        } else if (responsePhrase.indexOf("{p2}") != -1) {
-            cont_params = 2
-        }
-
-        for (let i = 1; i <= cont_params; i++) {
-            let complementChosen = data.complementos[Math.floor(Math.random() * data.complementos.length)]
-            responsePhrase = responsePhrase.replace(`{p${i}}`, `*${complementChosen}*`)
-            data.complementos.splice(data.complementos.indexOf(complementChosen, 1))
-        }
-
-        return responsePhrase as string
-    } catch (err) {
-        showConsoleLibraryError(err, 'funnyRandomPhrases')
-        throw new Error(botTexts.library_error)
+    // Modelos e complementos locais; cada lacuna recebe um complemento diferente
+    let phrase = FUNNY_TEMPLATES[Math.floor(Math.random() * FUNNY_TEMPLATES.length)]
+    const pool = [...FUNNY_COMPLEMENTS]
+    for (let i = 1; i <= 3 && phrase.includes(`{p${i}}`); i++) {
+        const [chosen] = pool.splice(Math.floor(Math.random() * pool.length), 1)
+        phrase = phrase.replace(`{p${i}}`, `*${chosen}*`)
     }
+    return phrase
 }

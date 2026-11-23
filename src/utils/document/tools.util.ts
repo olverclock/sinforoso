@@ -49,7 +49,7 @@ export function toolPath(file: string): string {
 
 /** Pasta temporária exclusiva de um trabalho; sempre removida pelo chamador (withWorkdir). */
 export async function withWorkdir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
-    const base = path.join(os.tmpdir(), 'lbot-whatsapp', 'docs')
+    const base = path.join(os.tmpdir(), 'sinforoso', 'docs')
     fs.mkdirSync(base, { recursive: true })
     const dir = fs.mkdtempSync(path.join(base, 'job-'))
     try {

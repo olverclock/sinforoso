@@ -17,7 +17,7 @@ if (!fs.existsSync(process.env.YTDL_DEBUG_PATH)) fs.mkdirSync(process.env.YTDL_D
 async function cleanupTempFiles() {
     try {
         // Sobras com mais de 1 hora: mídias de conversões (pasta temporária do sistema) e arquivos do ytdl
-        const dirs = [path.join(tmpdir(), 'lbot-whatsapp'), path.join(tmpdir(), 'lbot-whatsapp', 'docs'), ...(process.env.YTDL_DEBUG_PATH ? [process.env.YTDL_DEBUG_PATH] : [])]
+        const dirs = [path.join(tmpdir(), 'sinforoso'), path.join(tmpdir(), 'sinforoso', 'docs'), ...(process.env.YTDL_DEBUG_PATH ? [process.env.YTDL_DEBUG_PATH] : [])]
         const removed = cleanupOldTempFiles(60 * 60 * 1000, dirs)
         if (removed) console.log(`\x1b[36m[MAINTENANCE]\x1b[0m ${removed} arquivo(s) temporário(s) antigo(s) removido(s).`)
     } catch (err) { }
