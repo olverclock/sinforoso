@@ -1,0 +1,110 @@
+{
+  "name": "sinforoso-whatsapp",
+  "version": "3.6.0",
+  "description": "Bot brasileiro para Whatsapp com diversas utilidades para o dia-a-dia.",
+  "type": "module",
+  "main": "dist/app.js",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env dist/app.js",
+    "clean": "rimraf dist/",
+    "copy-media": "npm run copy-media:core",
+    "copy-media:core": "copyfiles -u 2 src/media/* dist/media",
+    "dev": "npm run build && node --env-file-if-exists=.env dist/app.js",
+    "migrate": "cross-env migrate=y npm run dev",
+    "build": "npm run clean && tsc && npm run copy-media",
+    "zip": "npm run build && bestzip LBOT-v$npm_package_version.zip dist package.json LICENSE package-lock.json",
+    "validate-architecture": "depcruise src --config .dependency-cruiser.cjs --ignore-known .dependency-cruiser-known-violations.json --output-type err-long",
+    "validate-architecture:all": "depcruise src --config .dependency-cruiser.cjs --output-type err",
+    "validate-architecture:json": "node -e \"require('fs').mkdirSync('reports',{recursive:true})\" && depcruise src --config .dependency-cruiser.cjs --ignore-known .dependency-cruiser-known-violations.json --output-type json --output-to reports/architecture-violations.json",
+    "validate-architecture:baseline": "depcruise src --config .dependency-cruiser.cjs --output-type baseline --output-to .dependency-cruiser-known-violations.json",
+    "test:architecture": "node scripts/test-architecture-rules.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node scripts/run-tests.mjs",
+    "test:coverage": "node scripts/run-tests.mjs --coverage",
+    "complexity": "node scripts/complexity-report.mjs",
+    "audit:prod": "npm audit --omit=dev",
+    "check": "npm run typecheck && npm run check:any && npm run check:complexity && npm test && npm run validate-architecture && npm run test:architecture && npm run audit:prod",
+    "check:any": "node scripts/check-no-any.mjs",
+    "setup:yt-dlp": "node scripts/install-yt-dlp.mjs",
+    "check:complexity": "node scripts/complexity-report.mjs --top 0 --fail-cyclomatic 20"
+  },
+  "author": "olverclock",
+  "license": "GPL-3.0-only",
+  "repository": "git+https://github.com/olverclock/lbot-whatsapp.git",
+  "keywords": [
+    "whatsapp",
+    "whatsapp-bot",
+    "bot",
+    "sticker"
+  ],
+  "devDependencies": {
+    "@types/fluent-ffmpeg": "^2.1.27",
+    "@types/fs-extra": "^11.0.4",
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "^24",
+    "@types/qrcode": "^1.5.5",
+    "@types/qrcode-terminal": "^0.12.2",
+    "@types/user-agents": "^1.0.4",
+    "bestzip": "^4.0.3",
+    "copyfiles": "^2.4.1",
+    "cross-env": "^10.1.0",
+    "dependency-cruiser": "18.7.2",
+    "rimraf": "^6.1.4",
+    "rollup": "^4.67.4",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "@distube/ytdl-core": "^5.2.0",
+    "@gradio/client": "^2.7.2",
+    "@hapi/boom": "^10.0.1",
+    "@seald-io/nedb": "^4.1.1",
+    "@tobyg74/tiktok-api-dl": "^1.3.2",
+    "@victorsouzaleal/brasileirao": "^1.1.2",
+    "axios": "^1.21.0",
+    "baileys": "npm:@whiskeysockets/baileys@^7.0.0-rc14",
+    "chalk": "^6.0.1",
+    "emoji-mixer": "^2.2.1",
+    "fb-downloader-scrapper": "^3.0.0",
+    "file-type": "^22.3.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "format-duration": "^4.0.0",
+    "fs-extra": "^11.4.1",
+    "jimp": "^1.6.1",
+    "jsdom": "^30.1.3",
+    "moment": "^2.31.0",
+    "moment-timezone": "^0.6.6",
+    "node-cache": "^5.1.2",
+    "node-upload-images": "^1.0.1",
+    "node-webpmux": "^3.2.0",
+    "pino": "^10.4.0",
+    "pino-pretty": "^13.2.0",
+    "pretty-num": "^0.6.2",
+    "qrcode-terminal": "^0.12.0",
+    "sharp": "^0.35.5",
+    "shazamio-core": "^1.3.1",
+    "user-agents": "^2.1.232"
+  },
+  "optionalDependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0"
+  },
+  "overrides": {
+    "axios": "^1.21.0",
+    "form-data": "^4.0.6",
+    "qs": "^6.17.1",
+    "canvas": "^3.2.3",
+    "@tobyg74/tiktok-api-dl": {
+      "uuid": "^11.1.1"
+    },
+    "redstar": {
+      "minimatch": "^3.1.5"
+    },
+    "jimp": {
+      "zod": "^4.6.7"
+    },
+    "bestzip": {
+      "glob": "^14.0.3",
+      "minimatch": "^11.0.4"
+    }
+  }
+}

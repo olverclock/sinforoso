@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1fb37a"/>
+      <stop offset="1" stop-color="#0b6e4f"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+  <!-- balão de conversa -->
+  <path d="M60 70 h136 a24 24 0 0 1 24 24 v66 a24 24 0 0 1 -24 24 h-70 l-34 28 v-28 h-32 a24 24 0 0 1 -24 -24 v-66 a24 24 0 0 1 24 -24 z" fill="#ffffff"/>
+  <!-- rosto do robô -->
+  <circle cx="98" cy="125" r="15" fill="#0b6e4f"/>
+  <circle cx="158" cy="125" r="15" fill="#0b6e4f"/>
+  <circle cx="103" cy="120" r="5" fill="#ffffff"/>
+  <circle cx="163" cy="120" r="5" fill="#ffffff"/>
+  <path d="M104 158 q24 16 48 0" stroke="#0b6e4f" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <!-- antena -->
+  <line x1="128" y1="70" x2="128" y2="44" stroke="#ffffff" stroke-width="9" stroke-linecap="round"/>
+  <circle cx="128" cy="38" r="11" fill="#ffd54a"/>
+</svg>

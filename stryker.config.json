@@ -1,0 +1,36 @@
+{
+  "$comment": "Testes de mutação (Stryker 10.1.1). O Stryker NÃO é dependência do projeto: instale numa pasta separada e rode com cwd = raiz do projeto. Ver docs/AUDITORIA_ENGENHARIA.md §5.",
+  "testRunner": "command",
+  "commandRunner": {
+    "command": "node scripts/run-tests.mjs tests/antilink.test.ts tests/events-queue.test.ts tests/commands-util.test.ts tests/format-wamessage.test.ts"
+  },
+  "coverageAnalysis": "off",
+  "mutate": [
+    "src/utils/commands.util.ts",
+    "src/helpers/events.queue.helper.ts:19-36",
+    "src/utils/general.util.ts:147-201",
+    "src/utils/whatsapp.util.ts:319-431"
+  ],
+  "ignorePatterns": [
+    "storage",
+    "dist",
+    "*.zip",
+    "reports",
+    "docs",
+    ".agent",
+    "arch-fixtures",
+    "src/media"
+  ],
+  "tempDirName": ".stryker-tmp",
+  "concurrency": 4,
+  "timeoutMS": 15000,
+  "reporters": [
+    "clear-text",
+    "json"
+  ],
+  "jsonReporter": {
+    "fileName": "reports/mutation/mutation.json"
+  },
+  "cleanTempDir": "always",
+  "logLevel": "warn"
+}

@@ -1,0 +1,79 @@
+# Sinforoso — sobe pelo terminal e aparece no CasaOS com ícone.
+# Uso (na pasta do projeto):
+#   cp .env.example .env        (preencha GROQ_API_KEY, MYMEMORY_EMAIL etc.)
+#   docker compose build && docker compose up -d
+#   docker attach sinforoso     (só na 1ª vez: escolha QR code ou código de pareamento)
+#   Para sair do attach sem parar o bot: Ctrl+P e depois Ctrl+Q
+# Não importe também pelo painel do CasaOS: este arquivo já é o app (os dois usariam o container "sinforoso").
+services:
+  sinforoso:
+    build: .
+    image: sinforoso-whatsapp:latest
+    container_name: sinforoso
+    restart: unless-stopped
+    init: true               # encerra o bot direito no docker stop
+    # Endurecimento: sem ganho de privilégios, só as capacidades que o entrypoint usa (acertar o
+    # dono da pasta storage e trocar para o usuário "node") e limites de recursos, para que um
+    # documento pesado nunca derrube o Orange Pi.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+    pids_limit: 512
+    mem_limit: 4g
+    cpus: "3.0"
+    stdin_open: true         # o bot faz perguntas no terminal na 1ª conexão
+    tty: true
+    env_file:
+      - path: .env
+        required: false      # sobe mesmo sem .env (Compose 2.24 ou mais novo)
+    environment:
+      TZ: America/Sao_Paulo
+    volumes:
+      # No CasaOS, as pastas de apps costumam ficar em /DATA/AppData
+      - ./storage:/app/storage
+      # Backups automáticos (todo dia às 4h; os 7 mais recentes). Fora de storage/ de propósito:
+      # se a pasta storage se perder, os backups continuam aqui.
+      - ./backups:/app/backups
+      # Pasta temporária em memória (sintaxe longa, que documenta "size"): sobras de fotos, vídeos,
+      # áudios e documentos somem ao reiniciar e não gastam o SSD. Permissão padrão do tmpfs: 1777.
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 2147483648   # 2 GB
+    # Driver "local": o recomendado pela Docker. Ele já faz rotação e compacta os logs.
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Dados para o painel do CasaOS (formato x-casaos v2). O Docker ignora este bloco.
+x-casaos:
+  id: com.sinforoso.whatsapp
+  main: sinforoso
+  index: /
+  port_map: ""
+  scheme: http
+  architectures:
+    - arm64
+    - amd64
+  category: Social
+  version: "3.6.0"
+  author: olverclock
+  developer: olverclock
+  title:
+    en_US: Sinforoso
+    pt_BR: Sinforoso
+  tagline:
+    en_US: WhatsApp bot with stickers, downloads, games, automations and PDF tools
+    pt_BR: Bot de WhatsApp com figurinhas, downloads, jogos, automações e ferramentas de PDF
+  description:
+    en_US: Brazilian WhatsApp bot running fully on your server. Data stays in the storage folder next to this file.
+    pt_BR: Bot brasileiro para WhatsApp rodando inteiro no seu servidor. Os dados ficam na pasta storage ao lado deste arquivo.
+  icon: data:image/png;base64,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

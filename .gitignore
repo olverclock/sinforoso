@@ -1,0 +1,38 @@
+# Ignorar node_modules
+node_modules
+#Ignorar node-persist
+.node-persist
+#Ignorar .env
+*.env
+#Ignorar arquivo de teste
+test.js
+#Ignorar logs
+*.log
+logs/session/*
+#Ignorar arquivos temporarios
+temp
+#Ignorar DB e etc
+storage
+# Codigo JS
+dist
+#Sessao
+session
+#Relatorios de validacao arquitetural
+reports
+#Pasta temporaria do Stryker (testes de mutacao)
+.stryker-tmp
+#Binario do yt-dlp (instalado por npm run setup:yt-dlp)
+bin
+backups
+#Configuracao com chaves (o modelo publico e o .env.example)
+.env
+#Copias e arquivos da instalacao local (nao fazem parte do projeto)
+SERVER-UPLOAD
+ARQUIVOS-GITHUB
+api-rastreio
+docker-compose-old-original.yml
+docker-compose-CASA-OS.yml
+.agent
+coverage
+.probe-tmp
+*.tar.gz
