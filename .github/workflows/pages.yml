@@ -1,6 +1,8 @@
 # Publica a página do bot (pasta site/) no GitHub Pages, de graça.
 # No GitHub: Settings → Pages → Build and deployment → Source: "GitHub Actions".
 # Versões iguais às do modelo oficial "Static HTML" do GitHub (actions/starter-workflows, pages/static.yml).
+# Duas etapas (empacotar → publicar), como nos modelos maiores do GitHub: a publicação só começa depois
+# que o pacote terminou de ser registrado (evita o erro intermitente "No artifacts named github-pages").
 # Roda sozinho quando algo dentro de site/ muda na branch main (ou manualmente na aba Actions).
 name: Publicar site (GitHub Pages)
 
@@ -22,10 +24,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  empacotar:
     runs-on: ubuntu-latest
     steps:
       - name: Baixar o código
@@ -36,6 +35,14 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
+
+  publicar:
+    needs: empacotar
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Publicar
         id: deployment
         uses: actions/deploy-pages@v5
