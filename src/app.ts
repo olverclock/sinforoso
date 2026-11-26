@@ -1,6 +1,9 @@
 import { installConsoleFilter } from "./utils/console-filter.util.js"
 // Antes de tudo: esconde do log as chaves e o excesso de mensagens internas do libsignal
 installConsoleFilter()
+import { installProcessGuards } from "./utils/process-guard.util.js"
+// Erro conhecido do Baileys (confirmação enviada com a conexão já fechada) não derruba mais o bot
+installProcessGuards()
 import moment from "moment-timezone"
 moment.tz.setDefault('America/Sao_Paulo')
 import fs from 'fs-extra'

@@ -1,4 +1,5 @@
-import { BinaryNode, INITIAL_PREKEY_COUNT, GroupMetadata, WAMessage, WAPresence, WASocket, S_WHATSAPP_NET, generateWAMessageFromContent, getContentType, proto } from "baileys"
+import { BinaryNode, INITIAL_PREKEY_COUNT, GroupMetadata, WAMessage, WAPresence, WASocket, S_WHATSAPP_NET, generateWAMessageContent, generateWAMessageFromContent, getContentType, prepareWAMessageMedia, proto } from "baileys"
+import { markStickerAudio, STICKER_AUDIO_MIMETYPE } from "./sound-sticker.util.js"
 import { User } from "../interfaces/user.interface.js"
 import axios from "axios"
 import { randomDelay, HTTP_TIMEOUT } from "./general.util.js"
@@ -226,6 +227,28 @@ export async function sendTextWithMentions(client: WASocket, chatId: string, tex
 
 export function sendSticker(client: WASocket, chatId: string, sticker: Buffer, options?: MessageOptions) {
     return client.sendMessage(chatId, { sticker }, { ephemeralExpiration: options?.expiration })
+}
+
+/**
+ * Figurinha com som (formato oficial audioStickerMessage, ver utils/sound-sticker.util.ts).
+ * Se algo falhar (upload, cliente sem suporte...), envia a figurinha normal, sem som: o comando nunca
+ * fica pior do que antes. Devolve true quando saiu com som.
+ */
+export async function sendSoundSticker(client: WASocket, chatId: string, sticker: Buffer, sound: { audio: Buffer, seconds: number }, options?: MessageOptions): Promise<boolean> {
+    try {
+        if (typeof client.relayMessage !== "function" || typeof client.waUploadToServer !== "function" || !client.user?.id) throw new Error("cliente sem envio direto")
+        const content = await generateWAMessageContent({ sticker }, { upload: client.waUploadToServer, jid: chatId })
+        const { audioMessage } = await prepareWAMessageMedia({ audio: sound.audio, mimetype: STICKER_AUDIO_MIMETYPE, ptt: false, seconds: sound.seconds }, { upload: client.waUploadToServer, jid: chatId })
+        if (!content.stickerMessage || !audioMessage) throw new Error("mídia não preparada")
+        content.stickerMessage.accessibilityLabel = markStickerAudio(audioMessage)
+        const fullMessage = generateWAMessageFromContent(chatId, content, { userJid: client.user.id, ephemeralExpiration: options?.expiration })
+        await client.relayMessage(chatId, fullMessage.message!, { messageId: fullMessage.key.id! })
+        return true
+    } catch (err) {
+        console.log(`[figurinha com som] enviando sem som: ${err instanceof Error ? err.message : String(err)}`)
+        await sendSticker(client, chatId, sticker, options)
+        return false
+    }
 }
 
 /** Tipos de mídia que as funções de envio de arquivo sabem montar. */

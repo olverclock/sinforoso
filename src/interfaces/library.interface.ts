@@ -153,11 +153,13 @@ export type StickerOptions = {
     author: string,
     pack: string,
     fps: number,
-    type: StickerType
+    type: StickerType,
+    /** Figurinha animada: usa só os primeiros N segundos (figurinha com som: mesma duração do áudio). */
+    maxSeconds?: number
 }
 
 export type AudioModificationType = "estourar" | "reverso" | "grave" | "agudo" | "x2" | "volume"
 
-export type FileExtensions = 'mp3' | 'mp4' | 'webp' | 'png' | 'jpg' | 'gif' | 'zip' | 'wav' | 'm4a'
+export type FileExtensions = 'mp3' | 'mp4' | 'webp' | 'png' | 'jpg' | 'gif' | 'zip' | 'wav' | 'm4a' | 'ogg'
 
 export type StickerType = "resize" | "contain" | "circle"

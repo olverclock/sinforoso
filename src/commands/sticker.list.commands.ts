@@ -1,12 +1,29 @@
 import * as stickerFunctions from './sticker.functions.commands.js'
 
 const stickerCommands = {
+    sbx: {
+        guide: `Ex: *{$p}sbx* https://... - Faz uma *figurinha com som* do vídeo de qualquer site (YouTube, Instagram, TikTok, X, Facebook, Kwai e muitos outros), com os primeiros 5 segundos.\n\n` +
+            `Ex: *{$p}sbx* https://... 0:12-0:17 - Usa exatamente esse trecho (até 9 segundos).\n\n` +
+            `Ex: *{$p}sbx* https://... 1:05-1:10 mudo - Sem som.\n\n` +
+            `Ex: *{$p}sbx* https://... 1 - Figurinha circular · *2* - Sem cortar.\n\n` +
+            `*Som*: o som e a animação usam os mesmos 5 segundos (sempre sincronizados). Quem ainda não recebeu o recurso no WhatsApp vê a figurinha normal.\n`,
+        msgs: {
+            wait: "[AGUARDE] 🎞️ Fazendo a figurinha do vídeo de *{$1}* ({$2} → {$3})...",
+            error_no_video: "Não achei vídeo nesse link. Confira se o link é público e se o post tem vídeo.",
+            error_login: "Esse site só libera o vídeo para quem está logado. O bot usa apenas conteúdo público.",
+        },
+        function: stickerFunctions.sbxCommand
+    },
     s: {
         guide: `Ex: Envie/responda uma *IMAGEM/VIDEO* com *{$p}s* - Transforma em sticker.\n`+
         `Ex: Envie/responda uma *IMAGEM* com *{$p}s 1* - Transforma em sticker circular.\n`+
-        `Ex: Envie/responda uma *IMAGEM* com *{$p}s 2* - Transforma em sticker sem perder a proporção.\n`,
+        `Ex: Envie/responda uma *IMAGEM* com *{$p}s 2* - Transforma em sticker sem perder a proporção.\n`+
+        `Ex: Envie/responda um *VIDEO* com *{$p}s mudo* - Sticker animado *sem som*.\n\n`+
+        `Ex: Envie/responda um *VIDEO* com *{$p}s* 0:10-0:15 - Usa só esse trecho do vídeo (até 9 segundos; funciona com vídeos longos).\n\n`+
+        `*Som*: vídeo com áudio vira *sticker com som*: o som e a animação usam os mesmos primeiros 5 segundos (do vídeo ou do trecho), sempre sincronizados. Quem ainda não recebeu o recurso vê o sticker normal.\n`,
         msgs: {
-            error_limit: 'O video/gif deve ter no máximo 8 segundos.',
+            error_limit: 'O video/gif deve ter no máximo 9 segundos. Para usar um trecho de um vídeo maior, informe o tempo: *{$p}s* 0:10-0:15',
+            error_range_limit: 'O trecho da figurinha pode ter no máximo 9 segundos (com som, ela usa os primeiros 5 s do trecho).',
             error_message: "Houve um erro ao obter os dados da mensagem.",
             author_text: 'Solicitado por: {$1}'
         },

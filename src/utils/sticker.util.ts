@@ -8,9 +8,9 @@ import { Jimp } from 'jimp'
 import { StickerOptions, StickerType } from "../interfaces/library.interface.js"
 import botTexts from '../helpers/bot.texts.helper.js'
 
-export async function createSticker(mediaBuffer: Buffer, { pack = 'olverclock', author = 'olver stickers', fps = 9, type = 'resize' }: StickerOptions) {
+export async function createSticker(mediaBuffer: Buffer, { pack = 'olverclock', author = 'olver stickers', fps = 9, type = 'resize', maxSeconds }: StickerOptions) {
     try {
-        const bufferSticker = await stickerCreation(mediaBuffer, { pack, author, fps, type })
+        const bufferSticker = await stickerCreation(mediaBuffer, { pack, author, fps, type, maxSeconds })
 
         return bufferSticker
     } catch (err) {
@@ -54,7 +54,7 @@ export async function stickerToImage(stickerBuffer: Buffer) {
     }
 }
 
-async function stickerCreation(mediaBuffer: Buffer, { author, pack, fps, type }: StickerOptions) {
+async function stickerCreation(mediaBuffer: Buffer, { author, pack, fps, type, maxSeconds }: StickerOptions) {
     try {
         const bufferData = await fileTypeFromBuffer(mediaBuffer)
 
@@ -67,7 +67,9 @@ async function stickerCreation(mediaBuffer: Buffer, { author, pack, fps, type }:
 
         if (mime == 'image/webp') mediaBuffer = await pngConvertion(mediaBuffer)
 
-        const webpBuffer = await webpConvertion(mediaBuffer, isAnimated, fps, type)
+        const webpBuffer = (isAnimated && maxSeconds)
+            ? await soundStickerWebp(mediaBuffer, type, maxSeconds)
+            : await webpConvertion(mediaBuffer, isAnimated, fps, type, maxSeconds)
         const stickerBuffer = await addExif(webpBuffer, pack, author)
 
         return stickerBuffer
@@ -121,7 +123,30 @@ async function pngConvertion(mediaBuffer: Buffer) {
     }
 }
 
-async function webpConvertion(mediaBuffer: Buffer, isAnimated: boolean, fps: number, type: StickerType) {
+/** Limite oficial do WhatsApp para figurinha animada (README do WhatsApp/stickers, Android). */
+export const ANIMATED_STICKER_MAX_BYTES = 500 * 1024
+
+/**
+ * Figurinha com som: precisa caber nos 500 KB do WhatsApp. Acima disso o celular decodifica devagar,
+ * a animação roda mais lenta que o som e os dois se perdem. Tenta da melhor fluidez para a menor,
+ * com redução de ruído (vídeo de celular tem muito ruído, que pesa no WebP) e compressão máxima.
+ */
+const SOUND_STICKER_ATTEMPTS = [
+    { fps: 12, quality: 10 },
+    { fps: 10, quality: 5 },
+    { fps: 8, quality: 1 },
+]
+
+async function soundStickerWebp(mediaBuffer: Buffer, type: StickerType, maxSeconds: number): Promise<Buffer> {
+    let webp: Buffer | null = null
+    for (const attempt of SOUND_STICKER_ATTEMPTS) {
+        webp = await webpConvertion(mediaBuffer, true, attempt.fps, type, maxSeconds, { quality: attempt.quality, denoise: true })
+        if (webp.length <= ANIMATED_STICKER_MAX_BYTES) break
+    }
+    return webp!
+}
+
+async function webpConvertion(mediaBuffer: Buffer, isAnimated: boolean, fps: number, type: StickerType, maxSeconds?: number, tuning: { quality?: number, denoise?: boolean } = {}) {
     try {
         let inputMediaPath
         let options
@@ -132,15 +157,20 @@ async function webpConvertion(mediaBuffer: Buffer, isAnimated: boolean, fps: num
             options = [
                 "-vcodec libwebp",
                 "-filter:v",
-                `fps=fps=${fps}`,
+                // hqdn3d: reduz o ruído antes de comprimir (só na figurinha com som, que tem limite de tamanho)
+                tuning.denoise ? `hqdn3d,fps=fps=${fps}` : `fps=fps=${fps}`,
                 "-lossless 0",
-                "-compression_level 4",
-                "-q:v 10",
-                "-loop 1",
+                tuning.denoise ? "-compression_level 6" : "-compression_level 4",
+                `-q:v ${tuning.quality ?? 10}`,
+                // Figurinha com som: repetição infinita (o WhatsApp controla o loop e toca o som 3 vezes);
+                // sem som, mantém como sempre foi
+                maxSeconds ? "-loop 0" : "-loop 1",
                 "-preset picture",
                 "-an",
                 "-vsync 0",
-                "-s 512:512"
+                "-s 512:512",
+                // Figurinha com som: a animação dura o mesmo que o áudio, para os dois ficarem sincronizados
+                ...(maxSeconds ? ["-t", String(maxSeconds)] : [])
             ]
         } else {
             inputMediaPath = getTempPath('png')

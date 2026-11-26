@@ -56,6 +56,7 @@ ${section(`🖼️ FIGURINHAS`)}
 ${item(`${prefix}s`, "Imagem/vídeo para sticker")}
 ${item(`${prefix}s 1`, "Imagem para sticker (circular)")}
 ${item(`${prefix}s 2`, "Imagem para sticker (sem corte)")}
+${item(`${prefix}sbx`, "link [0:10-0:15] - Sticker com som de qualquer site")}
 ${item(`${prefix}snome`, "pack, autor - Renomeia sticker")}
 ${item(`${prefix}simg`, "Sticker para imagem")}
 ${item(`${prefix}ssf`, "Imagem para sticker (sem fundo)")}
@@ -87,6 +88,7 @@ ${SIDE}
 ${SIDE} Guia ❔: *${prefix}comando* guia
 ${SIDE}
 ${section(`📥 DOWNLOADS`)}
+${item(`${prefix}bx`, "link [1:20-1:45] - Vídeo de qualquer site")}
 ${item(`${prefix}play`, "nome - Áudio do Youtube")}
 ${item(`${prefix}yt`, "nome - Vídeo do Youtube")}
 ${item(`${prefix}fb`, "link - Vídeo do Facebook")}

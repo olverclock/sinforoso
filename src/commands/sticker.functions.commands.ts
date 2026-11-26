@@ -5,37 +5,80 @@ import { Message } from "../interfaces/message.interface.js"
 import * as waUtil from '../utils/whatsapp.util.js'
 import * as imageUtil from '../utils/image.util.js'
 import * as stickerUtil from '../utils/sticker.util.js'
+import { extractStickerAudio, VIDEO_STICKER_AUDIO_SECONDS } from '../utils/sound-sticker.util.js'
+import { clipVideo, formatClock, parseTimeRange, rangeLength } from '../utils/clip.util.js'
+import { anyVideo, isLink, LoginRequiredError, NoVideoError, siteName } from '../utils/any-video.util.js'
 import { buildText, errorMessage } from "../utils/general.util.js"
 import { messageErrorCommandUsage } from "../utils/commands.util.js"
 import stickerCommands from "./sticker.list.commands.js"
 
-export async function sCommand(client: WASocket, botInfo: Bot, message: Message, _group?: Group) {
-    let stickerType: "resize" | "contain" | "circle" = 'resize'
+/** Opções do !s: "1" círculo, "2" sem cortar, "mudo" sem som e um trecho opcional ("0:03-0:08"). */
+function stickerArgs(text: string) {
+    const { rest, range } = parseTimeRange(text)
+    const words = rest.split(/\s+/).filter(Boolean)
+    const stickerType: "resize" | "contain" | "circle" = words.includes('1') ? 'circle' : words.includes('2') ? 'contain' : 'resize'
+    const muted = words.some(word => /^(mudo|semsom|sem-som)$/i.test(word))
+    return { stickerType, muted, range, words }
+}
 
-    if (message.args[0] === '1') {
-        stickerType = 'circle'
-    } else if (message.args[0] === '2') {
-        stickerType = 'contain'
-    }
-
-    let messageData = {
+/** Mídia do !s (a própria mensagem ou a citada). */
+function stickerSource(message: Message) {
+    return {
         type: (message.isQuoted) ? message.quotedMessage?.type : message.type,
         message: (message.isQuoted) ? message.quotedMessage?.wa_message : message.wa_message,
         seconds: (message.isQuoted) ? message.quotedMessage?.media?.seconds : message.media?.seconds
     }
+}
+
+export async function sCommand(client: WASocket, botInfo: Bot, message: Message, _group?: Group) {
+    const { stickerType, muted, range } = stickerArgs(message.text_command)
+    const messageData = stickerSource(message)
+    const isVideo = messageData.type == "videoMessage"
 
     if (!messageData.type || !messageData.message) {
         throw new Error(stickerCommands.s.msgs.error_message)
-    } else if (messageData.type != "imageMessage" && messageData.type != "videoMessage") {
+    } else if (messageData.type != "imageMessage" && !isVideo) {
         throw new Error(messageErrorCommandUsage(botInfo.prefix, message))
-    } else if (messageData.type == "videoMessage" && messageData.seconds && messageData.seconds > 9) {
-        throw new Error(stickerCommands.s.msgs.error_limit)
+    } else if (isVideo && range && rangeLength(range) > 9) {
+        throw new Error(stickerCommands.s.msgs.error_range_limit)
+    } else if (isVideo && !range && messageData.seconds && messageData.seconds > 9) {
+        // Vídeo longo: com um trecho (ex.: !s 0:10-0:15) dá para escolher a parte da figurinha
+        throw new Error(buildText(stickerCommands.s.msgs.error_limit))
     }
 
-    const mediaBuffer = await downloadMediaMessage(messageData.message, "buffer", {})
+    const downloaded = await downloadMediaMessage(messageData.message, "buffer", {})
+    const mediaBuffer = (isVideo && range) ? await clipVideo(downloaded, range) : downloaded
+    await createAndSendSticker(client, botInfo, message, mediaBuffer, { isVideo, muted, stickerType })
+}
+
+/**
+ * Cria e envia a figurinha. Vídeo com som vira figurinha com som: som e animação usam os MESMOS
+ * primeiros 5 s (sincronizados). "mudo" mantém sem som (e a animação com a duração inteira, até 9 s).
+ */
+async function createAndSendSticker(client: WASocket, botInfo: Bot, message: Message, mediaBuffer: Buffer, opts: { isVideo: boolean, muted: boolean, stickerType: "resize" | "contain" | "circle" }) {
     const authorText = buildText(stickerCommands.s.msgs.author_text, message.pushname)
-    const stickerBuffer = await stickerUtil.createSticker(mediaBuffer, { pack: botInfo.name, author: authorText, fps: 9, type: stickerType })
-    await waUtil.sendSticker(client, message.chat_id, stickerBuffer, { expiration: message.expiration })
+    const sound = (opts.isVideo && !opts.muted) ? await extractStickerAudio(mediaBuffer).catch(() => null) : null
+    const stickerBuffer = await stickerUtil.createSticker(mediaBuffer, { pack: botInfo.name, author: authorText, fps: 9, type: opts.stickerType, maxSeconds: sound ? VIDEO_STICKER_AUDIO_SECONDS : undefined })
+    if (sound) await waUtil.sendSoundSticker(client, message.chat_id, stickerBuffer, sound, { expiration: message.expiration })
+    else await waUtil.sendSticker(client, message.chat_id, stickerBuffer, { expiration: message.expiration })
+}
+
+/** !sbx: figurinha (com som) do vídeo de qualquer site; sem trecho, usa os primeiros 5 s. */
+export async function sbxCommand(client: WASocket, botInfo: Bot, message: Message, _group?: Group) {
+    const { stickerType, muted, range, words } = stickerArgs(message.text_command)
+    const url = words.find(isLink)
+    if (!url) throw new Error(messageErrorCommandUsage(botInfo.prefix, message))
+    if (range && rangeLength(range) > 9) throw new Error(stickerCommands.s.msgs.error_range_limit)
+
+    const segment = range ?? { start: 0, end: muted ? 9 : VIDEO_STICKER_AUDIO_SECONDS }
+    const waitReply = buildText(stickerCommands.sbx.msgs.wait, siteName(url), formatClock(segment.start), formatClock(segment.end))
+    await waUtil.replyText(client, message.chat_id, waitReply, message.wa_message, { expiration: message.expiration })
+    const video = await anyVideo(url, segment).catch((err: unknown) => {
+        if (err instanceof NoVideoError) throw new Error(stickerCommands.sbx.msgs.error_no_video)
+        if (err instanceof LoginRequiredError) throw new Error(stickerCommands.sbx.msgs.error_login)
+        throw err
+    })
+    await createAndSendSticker(client, botInfo, message, video, { isVideo: true, muted, stickerType })
 }
 
 export async function simgCommand(client: WASocket, botInfo: Bot, message: Message, _group?: Group) {

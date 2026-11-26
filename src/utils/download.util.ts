@@ -10,6 +10,7 @@ import axios from 'axios'
 import { Ytdl, parseVideoId, SearchType } from '@distube/ytdl-core'
 import { FacebookMedia, InstagramMedia, TiktokMedia, XMedia } from '../interfaces/library.interface.js'
 import botTexts from '../helpers/bot.texts.helper.js'
+import { TimeRange, ytDlpSection } from './clip.util.js'
 
 /** Campos lidos do JSON do yt-dlp (-J). */
 type YtDlpInfo = {
@@ -234,40 +235,89 @@ export async function instagramMedia(url: string): Promise<InstagramMedia> {
 
 
 
-/** Metadados do vídeo do YouTube (busca por texto ou link). O download é feito por youtubeAudio/youtubeVideo. */
-export async function youtubeMedia(text: string) {
+/** Vídeo do YouTube que não pode ser baixado (privado, removido, bloqueado na região, restrição de idade...). */
+export class YoutubeUnavailableError extends Error {}
+
+const YT_UNAVAILABLE = /not available|unavailable|private video|has been removed|sign in to confirm your age|age[- ]restricted|members[- ]only|copyright/i
+
+export interface YoutubeInfo {
+    id_video: string, title: string, description: string, duration: number, channel: string, is_live: boolean,
+    duration_formatted: string, url: string, thumbnail: string
+}
+
+function youtubeInfo(id: string, data: { title?: string, description?: string, duration?: number, channel?: string, isLive?: boolean, thumbnail?: string }): YoutubeInfo {
+    const duration = Number(data.duration) || 0
+    return {
+        id_video: id,
+        title: data.title || 'YouTube Video',
+        description: data.description || '',
+        duration,
+        channel: data.channel || 'YouTube',
+        is_live: data.isLive || false,
+        duration_formatted: formatSeconds(duration),
+        url: `https://www.youtube.com/watch?v=${id}`,
+        thumbnail: data.thumbnail || `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
+    }
+}
+
+/** Metadados pelo yt-dlp (reserva quando o ytdl-core falha: mudança no player do YouTube, vídeo restrito...). */
+async function youtubeInfoByYtDlp(id: string): Promise<YoutubeInfo> {
+    const { stdout } = await ytDlp.run(['-J', '--no-playlist', '--no-warnings', '--skip-download', `https://www.youtube.com/watch?v=${id}`], 60_000)
+    const d = JSON.parse(stdout.toString('utf8')) as { id?: string, title?: string, description?: string, duration?: number, channel?: string, uploader?: string, is_live?: boolean, live_status?: string, thumbnail?: string }
+    return youtubeInfo(d.id || id, { title: d.title, description: d.description, duration: d.duration, channel: d.channel || d.uploader, isLive: d.is_live === true || d.live_status === 'is_live', thumbnail: d.thumbnail })
+}
+
+/** Candidatos: o ID do link, ou os 3 primeiros resultados da busca (ytdl-core; reserva: busca do yt-dlp). */
+async function youtubeCandidates(text: string, isURL: boolean, yt: Ytdl): Promise<string[]> {
+    if (isURL) return [parseVideoId(text.trim())].filter((id): id is string => !!id)
     try {
-        // ytdl-core v5: parseVideoId também aceita um ID solto de 11 caracteres; para manter o
-        // comportamento da v4 (validateURL), só tratamos como link quando o texto é uma URL do YouTube.
-        const isURLValid = /^(https?:\/\/)?([\w-]+\.)?(youtube\.com|youtu\.be|youtube-nocookie\.com)\//i.test(text.trim())
-        const yt = new Ytdl()
-        let videoId: string | undefined
-
-        if (isURLValid) {
-            videoId = parseVideoId(text.trim())
-        } else {
-            const videos = await yt.search(text, { type: SearchType.Video })
-            videoId = videos[0]?.id
-        }
-
-        if (!videoId) return null
-
-        const videoInfo = await yt.getInfo(videoId)
-        return {
-            id_video: videoId,
-            title: videoInfo.videoDetails.title || 'YouTube Video',
-            description: videoInfo.videoDetails.description || '',
-            duration: Number(videoInfo.videoDetails.lengthSeconds),
-            channel: videoInfo.videoDetails.author?.name || 'YouTube',
-            is_live: videoInfo.videoDetails.isLive || false,
-            duration_formatted: formatSeconds(Number(videoInfo.videoDetails.lengthSeconds)),
-            url: `https://www.youtube.com/watch?v=${videoId}`,
-            thumbnail: videoInfo.videoDetails.thumbnails[0]?.url || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
-        }
+        return (await yt.search(text, { type: SearchType.Video })).slice(0, 3).map(v => v.id).filter(Boolean)
     } catch (err) {
-        showConsoleLibraryError(err, 'youtubeMedia')
+        showConsoleLibraryError(err, 'youtubeMedia (busca ytdl-core)')
+        const { stdout } = await ytDlp.run(['-J', '--flat-playlist', '--no-warnings', `ytsearch3:${text}`], 60_000)
+        const entries = (JSON.parse(stdout.toString('utf8')) as { entries?: ({ id?: string } | null)[] }).entries ?? []
+        return entries.map(e => e?.id).filter((id): id is string => !!id)
+    }
+}
+
+/**
+ * Metadados do vídeo do YouTube (busca por texto ou link). O download é feito por youtubeAudio/youtubeVideo.
+ * Para cada candidato tenta o ytdl-core e, se falhar, o yt-dlp. Na busca, um resultado indisponível
+ * passa para o próximo. Vídeo indisponível gera YoutubeUnavailableError (mensagem clara no comando).
+ */
+export async function youtubeMedia(text: string): Promise<YoutubeInfo | null> {
+    // ytdl-core v5: parseVideoId também aceita um ID solto de 11 caracteres; para manter o
+    // comportamento da v4 (validateURL), só tratamos como link quando o texto é uma URL do YouTube.
+    const isURLValid = /^(https?:\/\/)?([\w-]+\.)?(youtube\.com|youtu\.be|youtube-nocookie\.com)\//i.test(text.trim())
+    const yt = new Ytdl()
+    let candidates: string[]
+    try {
+        candidates = await youtubeCandidates(text, isURLValid, yt)
+    } catch (err) {
+        showConsoleLibraryError(err, 'youtubeMedia (busca)')
         throw new Error(botTexts.library_error)
     }
+    if (!candidates.length) return null
+
+    let unavailable = false
+    for (const id of candidates) {
+        try {
+            const info = await yt.getInfo(id)
+            const d = info.videoDetails
+            return youtubeInfo(id, { title: d.title, description: d.description ?? '', duration: Number(d.lengthSeconds), channel: d.author?.name, isLive: d.isLive, thumbnail: d.thumbnails[0]?.url })
+        } catch (ytdlErr) {
+            try {
+                return await youtubeInfoByYtDlp(id)
+            } catch (ytDlpErr) {
+                const why = errorMessage(ytDlpErr)
+                if (YT_UNAVAILABLE.test(why)) { unavailable = true; console.log(`[youtube] ${id} indisponível: ${why.split('\n').pop()}`); continue }
+                showConsoleLibraryError(ytdlErr, 'youtubeMedia (ytdl-core)')
+                showConsoleLibraryError(ytDlpErr, 'youtubeMedia (yt-dlp)')
+            }
+        }
+    }
+    if (unavailable) throw new YoutubeUnavailableError('vídeo indisponível')
+    throw new Error(botTexts.library_error)
 }
 
 /** Lê um stream do ytdl-core inteiro para a memória. */
@@ -297,6 +347,40 @@ export async function youtubeAudio(videoId: string): Promise<Buffer> {
             showConsoleLibraryError(fallbackErr, 'youtubeAudio (yt-dlp)')
             throw new Error(botTexts.library_error)
         }
+    }
+}
+
+/** Vídeo mais longo aceito quando a pessoa pede só um trecho (o trecho em si continua até 6 minutos). */
+export const YT_MAX_SOURCE_SECONDS_FOR_CLIP = 3 * 60 * 60
+
+/** Só um trecho do vídeo, pelo yt-dlp (--download-sections): não baixa o vídeo inteiro. */
+export async function youtubeVideoSection(videoId: string, range: TimeRange): Promise<Buffer> {
+    try {
+        return await ytDlp.downloadToBuffer(['-f', ytDlpVideoFormat(), '--merge-output-format', 'mp4', '--download-sections', ytDlpSection(range), '--force-keyframes-at-cuts', '--no-playlist', `https://www.youtube.com/watch?v=${videoId}`], 'mp4')
+    } catch (err) {
+        showConsoleLibraryError(err, 'youtubeVideoSection (yt-dlp)')
+        throw new Error(botTexts.library_error)
+    }
+}
+
+/** Só um trecho do áudio, pelo yt-dlp (--download-sections). */
+export async function youtubeAudioSection(videoId: string, range: TimeRange): Promise<Buffer> {
+    try {
+        return await ytDlp.downloadToBuffer(['-f', 'ba[ext=m4a]/ba/b', '--download-sections', ytDlpSection(range), '--no-playlist', `https://www.youtube.com/watch?v=${videoId}`], 'm4a')
+    } catch (err) {
+        showConsoleLibraryError(err, 'youtubeAudioSection (yt-dlp)')
+        throw new Error(botTexts.library_error)
+    }
+}
+
+/** Baixa a mídia de um link direto (para recortar antes de enviar). */
+export async function mediaBuffer(url: string): Promise<Buffer> {
+    try {
+        const { data } = await axios.get(url, { timeout: HTTP_TIMEOUT.media, responseType: 'arraybuffer' })
+        return Buffer.from(data)
+    } catch (err) {
+        showConsoleLibraryError(err, 'mediaBuffer')
+        throw new Error(botTexts.library_error)
     }
 }
 
