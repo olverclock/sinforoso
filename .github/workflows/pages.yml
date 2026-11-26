@@ -1,0 +1,40 @@
+# Publica a página do bot (pasta site/) no GitHub Pages, de graça.
+# No GitHub: Settings → Pages → Build and deployment → Source: "GitHub Actions".
+# Roda sozinho quando algo dentro de site/ muda na branch main (ou manualmente na aba Actions).
+name: Publicar site (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v7
+      - name: Preparar o GitHub Pages
+        uses: actions/configure-pages@v6
+      - name: Empacotar a pasta site/
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+      - name: Publicar
+        id: deployment
+        uses: actions/deploy-pages@v5
