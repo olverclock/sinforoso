@@ -9,15 +9,28 @@ import * as downloadUtil from '../utils/download.util.js'
 import * as convertUtil from '../utils/convert.util.js'
 import { imageSearch } from '../utils/image.util.js'
 import format from 'format-duration'
-import downloadCommands, { clipTexts, CLIP_MAX_SOURCE_SECONDS } from "./download.list.commands.js"
-import { clipAudio, clipVideo, formatClock, parseTimeRange, rangeLength, TimeRange } from "../utils/clip.util.js"
+import downloadCommands, { clipTexts, CLIP_MAX_SOURCE_SECONDS, langTexts } from "./download.list.commands.js"
+import { clipAudio, clipVideo, formatClock, rangeLength, TimeRange } from "../utils/clip.util.js"
 import * as anyVideo from "../utils/any-video.util.js"
+import { languageName, parseDownloadOptions } from "../utils/audio-lang.util.js"
 
-/** Trecho opcional no fim do comando ("1:20-1:45"); devolve o link/busca sem ele. */
+/**
+ * Opções no fim do comando: trecho ("1:20-1:45") e idioma do áudio ("en", "espanhol"). Sem idioma, o
+ * áudio é sempre o original. Devolve o link/busca sem as opções.
+ */
 function withRange(botInfo: Bot, message: Message) {
-    const { rest, range } = parseTimeRange(message.text_command)
+    const { rest, range, lang } = parseDownloadOptions(message.text_command)
     if (!rest) throw new Error(messageErrorCommandUsage(botInfo.prefix, message))
-    return { text: rest, range }
+    return { text: rest, range, lang }
+}
+
+const langNote = (lang: string | null) => lang ? buildText(langTexts.note, languageName(lang)) : ''
+
+/** Mensagem quando o vídeo não tem o idioma pedido (mostra os disponíveis). */
+function languageError(err: downloadUtil.AudioLanguageUnavailableError): Error {
+    if (!err.available.length) return new Error(buildText(langTexts.no_dubs, languageName(err.lang)))
+    const list = err.available.map(t => `${languageName(t.code)}${t.original ? ' (original)' : ''} = *${t.code}*`).join(', ')
+    return new Error(buildText(langTexts.unavailable, languageName(err.lang), list))
 }
 
 const rangeNote = (range: TimeRange | null) => range ? buildText(clipTexts.note, formatClock(range.start), formatClock(range.end)) : ''
@@ -37,7 +50,7 @@ type YoutubeMsgs = typeof downloadCommands.yt.msgs
 
 /** Vídeo do YouTube pedido e validações (duração, ao vivo, trecho). */
 async function youtubeTarget(botInfo: Bot, message: Message, msgs: YoutubeMsgs) {
-    const { text, range } = withRange(botInfo, message)
+    const { text, range, lang } = withRange(botInfo, message)
     const videoInfo = await downloadUtil.youtubeMedia(text).catch((err: unknown) => {
         if (err instanceof downloadUtil.YoutubeUnavailableError) throw new Error(msgs.error_unavailable)
         throw err
@@ -55,7 +68,11 @@ async function youtubeTarget(botInfo: Bot, message: Message, msgs: YoutubeMsgs) 
         // Vídeo longo: com um trecho (ex.: 10:00-12:30) dá para baixar só a parte desejada
         throw new Error(buildText(msgs.error_limit))
     }
-    return { videoInfo, range }
+    await downloadUtil.assertAudioLanguage(videoInfo.id_video, lang).catch((err: unknown) => {
+        if (err instanceof downloadUtil.AudioLanguageUnavailableError) throw languageError(err)
+        throw err
+    })
+    return { videoInfo, range, lang }
 }
 
 export async function playCommand(client: WASocket, botInfo: Bot, message: Message, _group?: Group) {
@@ -63,16 +80,16 @@ export async function playCommand(client: WASocket, botInfo: Bot, message: Messa
         throw new Error(messageErrorCommandUsage(botInfo.prefix, message))
     }
 
-    const { videoInfo, range } = await youtubeTarget(botInfo, message, downloadCommands.play.msgs)
-    const waitReply = buildText(downloadCommands.play.msgs.wait, videoInfo.title, videoInfo.duration_formatted) + rangeNote(range)
+    const { videoInfo, range, lang } = await youtubeTarget(botInfo, message, downloadCommands.play.msgs)
+    const waitReply = buildText(downloadCommands.play.msgs.wait, videoInfo.title, videoInfo.duration_formatted) + rangeNote(range) + langNote(lang)
     await waUtil.replyText(client, message.chat_id, waitReply, message.wa_message, { expiration: message.expiration })
 
     let audioBuffer: Buffer
     if (range && videoInfo.duration > 360) {
         // Vídeo longo: o yt-dlp baixa só o trecho
-        audioBuffer = await convertUtil.convertMp4ToMp3('buffer', await downloadUtil.youtubeAudioSection(videoInfo.id_video, range))
+        audioBuffer = await convertUtil.convertMp4ToMp3('buffer', await downloadUtil.youtubeAudioSection(videoInfo.id_video, range, lang))
     } else {
-        audioBuffer = await convertUtil.convertMp4ToMp3('buffer', await downloadUtil.youtubeAudio(videoInfo.id_video))
+        audioBuffer = await convertUtil.convertMp4ToMp3('buffer', await downloadUtil.youtubeAudio(videoInfo.id_video, lang))
         if (range) audioBuffer = await clipAudio(audioBuffer, range)
     }
     await waUtil.replyFileFromBuffer(client, message.chat_id, 'audioMessage', audioBuffer, '', message.wa_message, { expiration: message.expiration, mimetype: 'audio/mpeg' })
@@ -83,16 +100,16 @@ export async function ytCommand(client: WASocket, botInfo: Bot, message: Message
         throw new Error(messageErrorCommandUsage(botInfo.prefix, message))
     }
 
-    const { videoInfo, range } = await youtubeTarget(botInfo, message, downloadCommands.yt.msgs)
-    const waitReply = buildText(downloadCommands.yt.msgs.wait, videoInfo.title, videoInfo.duration_formatted) + rangeNote(range)
+    const { videoInfo, range, lang } = await youtubeTarget(botInfo, message, downloadCommands.yt.msgs)
+    const waitReply = buildText(downloadCommands.yt.msgs.wait, videoInfo.title, videoInfo.duration_formatted) + rangeNote(range) + langNote(lang)
     await waUtil.replyText(client, message.chat_id, waitReply, message.wa_message, { expiration: message.expiration })
 
     let videoBuffer: Buffer
     if (range && videoInfo.duration > 360) {
         // Vídeo longo: o yt-dlp baixa só o trecho (não o vídeo inteiro)
-        videoBuffer = await downloadUtil.youtubeVideoSection(videoInfo.id_video, range)
+        videoBuffer = await downloadUtil.youtubeVideoSection(videoInfo.id_video, range, lang)
     } else {
-        videoBuffer = await downloadUtil.youtubeVideo(videoInfo.id_video)
+        videoBuffer = await downloadUtil.youtubeVideo(videoInfo.id_video, lang)
         if (range) videoBuffer = await clipVideo(videoBuffer, range)
     }
     await waUtil.replyFileFromBuffer(client, message.chat_id, 'videoMessage', videoBuffer, '', message.wa_message, { expiration: message.expiration, mimetype: 'video/mp4' })
@@ -201,7 +218,7 @@ export async function bxCommand(client: WASocket, botInfo: Bot, message: Message
         throw new Error(messageErrorCommandUsage(botInfo.prefix, message))
     }
 
-    const { text, range } = withRange(botInfo, message)
+    const { text, range, lang } = withRange(botInfo, message)
     const provider = anyVideo.videoProvider(text)
     if (provider === null || provider === 'youtube') return ytCommand(client, botInfo, message, group)
     if (provider === 'instagram') return igCommand(client, botInfo, message, group)
@@ -210,9 +227,9 @@ export async function bxCommand(client: WASocket, botInfo: Bot, message: Message
     if (provider === 'facebook') return fbCommand(client, botInfo, message, group)
 
     if (range && rangeLength(range) > 360) throw new Error(clipTexts.range_too_long)
-    const waitReply = buildText(downloadCommands.bx.msgs.wait, anyVideo.siteName(text)) + rangeNote(range)
+    const waitReply = buildText(downloadCommands.bx.msgs.wait, anyVideo.siteName(text)) + rangeNote(range) + langNote(lang)
     await waUtil.replyText(client, message.chat_id, waitReply, message.wa_message, { expiration: message.expiration })
-    const video = await anyVideo.genericVideo(text, range).catch((err: unknown) => {
+    const video = await anyVideo.genericVideo(text, range, lang).catch((err: unknown) => {
         if (err instanceof anyVideo.NoVideoError) throw new Error(downloadCommands.bx.msgs.error_no_video)
         if (err instanceof anyVideo.LoginRequiredError) throw new Error(downloadCommands.bx.msgs.error_login)
         throw err

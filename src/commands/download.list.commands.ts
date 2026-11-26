@@ -6,6 +6,7 @@ const downloadCommands = {
             `Ex: *{$p}bx* https://... 1:20-1:45 - Envia só esse trecho.\n\n` +
             `Ex: *{$p}bx* gol do Brasil - Sem link, procura no YouTube.\n\n` +
             `*Trecho*: coloque o tempo no fim, ex.: *1:20-1:45*, *1:20 a 1:45*, *80-105* ou *1m20s-1m45s* (até 6 minutos).\n` +
+            `*Idioma*: o padrão é sempre o áudio *original*. Para a dublagem automática do YouTube, coloque o idioma no fim: *en*, *es*, *fr*... ou *ingles*, *espanhol* (ex.: *{$p}bx* link en).\n` +
             `*Limite*: até 50 MB por vídeo. Só conteúdo público.\n`,
         msgs: {
             wait: "[AGUARDE] 🎬 Baixando o vídeo de *{$1}*...",
@@ -17,6 +18,7 @@ const downloadCommands = {
     play: {
         guide: `Ex: *{$p}play* Evidências Chitãozinho e Xororó - Procura a música no YouTube e envia o áudio.\n\nEx: *{$p}play* https://youtu.be/... - Também aceita o link do vídeo.\n\nEx: *{$p}play* https://youtu.be/... 1:20-1:45 - Envia só esse trecho do áudio.\n\n` +
             `*Trecho*: coloque o tempo no fim, ex.: *1:20-1:45*, *1:20 a 1:45*, *80-105* ou *1m20s-1m45s* (até 6 minutos).\n` +
+            `*Idioma*: o padrão é sempre o áudio *original*. Para a dublagem automática do YouTube, coloque o idioma no fim: *en*, *es*, *fr*... ou *ingles*, *espanhol* (ex.: *{$p}play* link en).\n` +
             `*Limite*: vídeos de até 6 minutos; com trecho, vídeos de até 3 horas.\n`,
         msgs: {
             wait: "[AGUARDE] 🎧 Sua música está sendo baixada e processada.\n\n"+
@@ -32,6 +34,7 @@ const downloadCommands = {
     yt: {
         guide: `Ex: *{$p}yt* gol do Brasil - Procura no YouTube e envia o vídeo.\n\nEx: *{$p}yt* https://youtu.be/... - Também aceita o link do vídeo.\n\nEx: *{$p}yt* https://youtu.be/... 10:00-12:30 - Envia só esse trecho (em vídeos longos, baixa só o trecho).\n\n` +
             `*Trecho*: coloque o tempo no fim, ex.: *1:20-1:45*, *1:20 a 1:45*, *80-105* ou *1m20s-1m45s* (até 6 minutos).\n` +
+            `*Idioma*: o padrão é sempre o áudio *original*. Para a dublagem automática do YouTube, coloque o idioma no fim: *en*, *es*, *fr*... ou *ingles*, *espanhol* (ex.: *{$p}yt* link en).\n` +
             `*Qualidade*: a melhor que couber no limite (até 1080p e 50 MB), sem recomprimir.\n*Limite*: vídeos de até 6 minutos; com trecho, vídeos de até 3 horas. Transmissões ao vivo não são baixadas.\n`,
         msgs: {
             wait: "[AGUARDE] 🎥 Seu video está sendo baixado e processado.\n\n"+
@@ -107,3 +110,11 @@ export const clipTexts = {
     source_too_long_other: "Para recortar, o vídeo pode ter até *30 minutos*.",
     start_after_end: "O trecho começa depois do fim do vídeo (duração: {$1}).",
 }
+
+/** Idioma do áudio (dublagem automática do YouTube). Sem idioma no comando, o áudio é o original. */
+export const langTexts = {
+    note: "\n🗣️ *Áudio:* {$1} (dublagem)",
+    unavailable: "Esse vídeo não tem áudio em *{$1}*. Idiomas disponíveis: {$2}.\nSem idioma no comando, vai o áudio original.",
+    no_dubs: "Esse vídeo não tem dublagem em *{$1}*: ele só tem o áudio original. Use o comando sem o idioma.",
+}
+

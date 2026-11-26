@@ -6,11 +6,14 @@ const stickerCommands = {
             `Ex: *{$p}sbx* https://... 0:12-0:17 - Usa exatamente esse trecho (até 9 segundos).\n\n` +
             `Ex: *{$p}sbx* https://... 1:05-1:10 mudo - Sem som.\n\n` +
             `Ex: *{$p}sbx* https://... 1 - Figurinha circular · *2* - Sem cortar.\n\n` +
+            `Ex: *{$p}sbx* https://... 0:19-0:22 en - Usa a *dublagem automática* do YouTube nesse idioma (o padrão é sempre o áudio *original*).\n\n` +
             `*Som*: o som e a animação usam os mesmos 5 segundos (sempre sincronizados). Quem ainda não recebeu o recurso no WhatsApp vê a figurinha normal.\n`,
         msgs: {
             wait: "[AGUARDE] 🎞️ Fazendo a figurinha do vídeo de *{$1}* ({$2} → {$3})...",
             error_no_video: "Não achei vídeo nesse link. Confira se o link é público e se o post tem vídeo.",
             error_login: "Esse site só libera o vídeo para quem está logado. O bot usa apenas conteúdo público.",
+            error_language: "Esse vídeo não tem áudio em *{$1}*. Idiomas disponíveis: {$2}.",
+            error_no_dubs: "Esse vídeo não tem dublagem em *{$1}*: ele só tem o áudio original.",
         },
         function: stickerFunctions.sbxCommand
     },

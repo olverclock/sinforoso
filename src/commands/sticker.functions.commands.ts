@@ -6,19 +6,26 @@ import * as waUtil from '../utils/whatsapp.util.js'
 import * as imageUtil from '../utils/image.util.js'
 import * as stickerUtil from '../utils/sticker.util.js'
 import { extractStickerAudio, VIDEO_STICKER_AUDIO_SECONDS } from '../utils/sound-sticker.util.js'
-import { clipVideo, formatClock, parseTimeRange, rangeLength } from '../utils/clip.util.js'
+import { clipVideo, formatClock, rangeLength } from '../utils/clip.util.js'
 import { anyVideo, isLink, LoginRequiredError, NoVideoError, siteName } from '../utils/any-video.util.js'
+import { languageName, parseDownloadOptions } from '../utils/audio-lang.util.js'
+import { AudioLanguageUnavailableError } from '../utils/download.util.js'
 import { buildText, errorMessage } from "../utils/general.util.js"
 import { messageErrorCommandUsage } from "../utils/commands.util.js"
 import stickerCommands from "./sticker.list.commands.js"
 
 /** Opções do !s: "1" círculo, "2" sem cortar, "mudo" sem som e um trecho opcional ("0:03-0:08"). */
 function stickerArgs(text: string) {
-    const { rest, range } = parseTimeRange(text)
-    const words = rest.split(/\s+/).filter(Boolean)
-    const stickerType: "resize" | "contain" | "circle" = words.includes('1') ? 'circle' : words.includes('2') ? 'contain' : 'resize'
-    const muted = words.some(word => /^(mudo|semsom|sem-som)$/i.test(word))
-    return { stickerType, muted, range, words }
+    // Primeiro as palavras de opção (1, 2, mudo); depois trecho e idioma, em qualquer ordem
+    const all = text.trim().split(/\s+/).filter(Boolean)
+    const isFlag = (word: string) => /^(1|2|mudo|semsom|sem-som)$/i.test(word)
+    const flags = all.filter(isFlag)
+    const { rest, range, lang } = parseDownloadOptions(all.filter(word => !isFlag(word)).join(' '))
+    const words = [...rest.split(/\s+/).filter(Boolean), ...flags]
+    const stickerType: "resize" | "contain" | "circle" = flags.includes('1') ? 'circle' : flags.includes('2') ? 'contain' : 'resize'
+    const muted = flags.some(word => /^(mudo|semsom|sem-som)$/i.test(word))
+    // Idioma do áudio (dublagem do YouTube), ex.: "en"; sem idioma, o original
+    return { stickerType, muted, range, words, lang }
 }
 
 /** Mídia do !s (a própria mensagem ou a citada). */
@@ -65,7 +72,7 @@ async function createAndSendSticker(client: WASocket, botInfo: Bot, message: Mes
 
 /** !sbx: figurinha (com som) do vídeo de qualquer site; sem trecho, usa os primeiros 5 s. */
 export async function sbxCommand(client: WASocket, botInfo: Bot, message: Message, _group?: Group) {
-    const { stickerType, muted, range, words } = stickerArgs(message.text_command)
+    const { stickerType, muted, range, words, lang } = stickerArgs(message.text_command)
     const url = words.find(isLink)
     if (!url) throw new Error(messageErrorCommandUsage(botInfo.prefix, message))
     if (range && rangeLength(range) > 9) throw new Error(stickerCommands.s.msgs.error_range_limit)
@@ -73,7 +80,10 @@ export async function sbxCommand(client: WASocket, botInfo: Bot, message: Messag
     const segment = range ?? { start: 0, end: muted ? 9 : VIDEO_STICKER_AUDIO_SECONDS }
     const waitReply = buildText(stickerCommands.sbx.msgs.wait, siteName(url), formatClock(segment.start), formatClock(segment.end))
     await waUtil.replyText(client, message.chat_id, waitReply, message.wa_message, { expiration: message.expiration })
-    const video = await anyVideo(url, segment).catch((err: unknown) => {
+    const video = await anyVideo(url, segment, lang).catch((err: unknown) => {
+        if (err instanceof AudioLanguageUnavailableError) throw new Error(err.available.length
+            ? buildText(stickerCommands.sbx.msgs.error_language, languageName(err.lang), err.available.map(t => `${languageName(t.code)}${t.original ? ' (original)' : ''} = *${t.code}*`).join(', '))
+            : buildText(stickerCommands.sbx.msgs.error_no_dubs, languageName(err.lang)))
         if (err instanceof NoVideoError) throw new Error(stickerCommands.sbx.msgs.error_no_video)
         if (err instanceof LoginRequiredError) throw new Error(stickerCommands.sbx.msgs.error_login)
         throw err

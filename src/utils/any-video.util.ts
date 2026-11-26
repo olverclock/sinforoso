@@ -43,11 +43,11 @@ export function siteName(url: string): string {
  * Qualquer outro site, pelo yt-dlp: prefere H.264/AAC em MP4 (toca em qualquer celular), até 720p e
  * dentro do limite de tamanho do bot. Com trecho, baixa só o pedaço.
  */
-export async function genericVideo(url: string, range: TimeRange | null): Promise<Buffer> {
+export async function genericVideo(url: string, range: TimeRange | null, lang?: string | null): Promise<Buffer> {
     const mb = Math.floor(download.ytLimits().maxBytes / 1024 / 1024)
     try {
         return await download.ytDlp.downloadToBuffer([
-            '-f', 'bv*+ba/b', '-S', 'vcodec:h264,acodec:aac,res:720,ext:mp4:m4a',
+            '-f', lang ? `bv*+ba[language^=${lang}]/bv*+ba/b` : 'bv*+ba/b', '-S', 'lang,vcodec:h264,acodec:aac,res:720,ext:mp4:m4a', // lang: faixa de áudio original antes das dublagens
             // Alguns sites só têm AVI/WebM: --recode-video converte para MP4 só quando precisa
             '--merge-output-format', 'mp4', '--recode-video', 'mp4', '--max-filesize', `${mb}M`, '--no-playlist',
             ...(range ? ['--download-sections', ytDlpSection(range), '--force-keyframes-at-cuts'] : []),
@@ -63,15 +63,16 @@ export async function genericVideo(url: string, range: TimeRange | null): Promis
 }
 
 /** Primeiro vídeo do link, como arquivo (para a figurinha do !sbx). */
-async function providerVideo(provider: VideoProvider, url: string, range: TimeRange | null): Promise<{ buffer: Buffer, clipped: boolean }> {
+async function providerVideo(provider: VideoProvider, url: string, range: TimeRange | null, lang: string | null): Promise<{ buffer: Buffer, clipped: boolean }> {
     if (provider === 'youtube') {
         const id = parseVideoId(url.trim())
         if (!id) throw new NoVideoError('link do YouTube sem vídeo')
+        await download.assertAudioLanguage(id, lang)
         // Só o trecho (yt-dlp); se falhar, o vídeo inteiro pelo caminho normal e recorta depois
         if (range) {
-            try { return { buffer: await download.youtubeVideoSection(id, range), clipped: true } } catch { /* reserva abaixo */ }
+            try { return { buffer: await download.youtubeVideoSection(id, range, lang), clipped: true } } catch { /* reserva abaixo */ }
         }
-        return { buffer: await download.youtubeVideo(id), clipped: false }
+        return { buffer: await download.youtubeVideo(id, lang), clipped: false }
     }
     if (provider === 'instagram') {
         const video = (await download.instagramMedia(url)).media.find(m => m.type === 'video')
@@ -92,13 +93,13 @@ async function providerVideo(provider: VideoProvider, url: string, range: TimeRa
     if (provider === 'facebook') {
         return { buffer: await download.mediaBuffer((await download.facebookMedia(url)).sd), clipped: false }
     }
-    return { buffer: await genericVideo(url, range), clipped: !!range }
+    return { buffer: await genericVideo(url, range, lang), clipped: !!range }
 }
 
 /** Vídeo de qualquer site, já no trecho pedido (se houver). */
-export async function anyVideo(url: string, range: TimeRange | null): Promise<Buffer> {
+export async function anyVideo(url: string, range: TimeRange | null, lang: string | null = null): Promise<Buffer> {
     const provider = videoProvider(url)
     if (!provider) throw new NoVideoError('não é link')
-    const { buffer, clipped } = await providerVideo(provider, url, range)
+    const { buffer, clipped } = await providerVideo(provider, url, range, lang)
     return (range && !clipped) ? clipVideo(buffer, range) : buffer
 }

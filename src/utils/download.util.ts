@@ -334,15 +334,17 @@ function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
  * Áudio do vídeo (m4a/webm). Usa o download nativo do ytdl-core, que trata assinaturas e PO token
  * do YouTube (baixar o link direto do formato com axios recebia 403). Reserva: yt-dlp.
  */
-export async function youtubeAudio(videoId: string): Promise<Buffer> {
+export async function youtubeAudio(videoId: string, lang?: string | null): Promise<Buffer> {
     try {
         const yt = new Ytdl()
         const info = await yt.getInfo(videoId)
-        return await streamToBuffer(yt.download(info, { quality: 'highestaudio', filter: { hasAudio: true, hasVideo: false } }))
+        const original = languageAudioFormat(info.formats as unknown as (YtFormat & typeof info.formats[number])[], lang)
+        if (!original && lang) throw new Error(`ytdl-core sem faixa ${lang}`)
+        return await streamToBuffer(yt.download(info, original ? { format: original } : { quality: 'highestaudio', filter: { hasAudio: true, hasVideo: false } }))
     } catch (err) {
         showConsoleLibraryError(err, 'youtubeAudio (ytdl-core)')
         try {
-            return await ytDlp.downloadToBuffer(['-f', 'ba[ext=m4a]/ba/b', '--no-playlist', `https://www.youtube.com/watch?v=${videoId}`], 'm4a')
+            return await ytDlp.downloadToBuffer(['-f', ytDlpAudio(lang), '--no-playlist', `https://www.youtube.com/watch?v=${videoId}`], 'm4a')
         } catch (fallbackErr) {
             showConsoleLibraryError(fallbackErr, 'youtubeAudio (yt-dlp)')
             throw new Error(botTexts.library_error)
@@ -354,9 +356,9 @@ export async function youtubeAudio(videoId: string): Promise<Buffer> {
 export const YT_MAX_SOURCE_SECONDS_FOR_CLIP = 3 * 60 * 60
 
 /** Só um trecho do vídeo, pelo yt-dlp (--download-sections): não baixa o vídeo inteiro. */
-export async function youtubeVideoSection(videoId: string, range: TimeRange): Promise<Buffer> {
+export async function youtubeVideoSection(videoId: string, range: TimeRange, lang?: string | null): Promise<Buffer> {
     try {
-        return await ytDlp.downloadToBuffer(['-f', ytDlpVideoFormat(), '--merge-output-format', 'mp4', '--download-sections', ytDlpSection(range), '--force-keyframes-at-cuts', '--no-playlist', `https://www.youtube.com/watch?v=${videoId}`], 'mp4')
+        return await ytDlp.downloadToBuffer(['-f', ytDlpVideoFormat(ytLimits(), lang), '--merge-output-format', 'mp4', '--download-sections', ytDlpSection(range), '--force-keyframes-at-cuts', '--no-playlist', `https://www.youtube.com/watch?v=${videoId}`], 'mp4')
     } catch (err) {
         showConsoleLibraryError(err, 'youtubeVideoSection (yt-dlp)')
         throw new Error(botTexts.library_error)
@@ -364,9 +366,9 @@ export async function youtubeVideoSection(videoId: string, range: TimeRange): Pr
 }
 
 /** Só um trecho do áudio, pelo yt-dlp (--download-sections). */
-export async function youtubeAudioSection(videoId: string, range: TimeRange): Promise<Buffer> {
+export async function youtubeAudioSection(videoId: string, range: TimeRange, lang?: string | null): Promise<Buffer> {
     try {
-        return await ytDlp.downloadToBuffer(['-f', 'ba[ext=m4a]/ba/b', '--download-sections', ytDlpSection(range), '--no-playlist', `https://www.youtube.com/watch?v=${videoId}`], 'm4a')
+        return await ytDlp.downloadToBuffer(['-f', ytDlpAudio(lang), '--download-sections', ytDlpSection(range), '--no-playlist', `https://www.youtube.com/watch?v=${videoId}`], 'm4a')
     } catch (err) {
         showConsoleLibraryError(err, 'youtubeAudioSection (yt-dlp)')
         throw new Error(botTexts.library_error)
@@ -392,7 +394,86 @@ export const ytLimits = () => {
 }
 
 /** Campos do formato usados na escolha (ytdl-core: FormatMetadata). */
-export interface YtFormat { hasVideo: boolean, hasAudio: boolean, container: string, videoCodec?: string, height?: number, bitrate?: number, contentLength?: number }
+export interface YtFormat { hasVideo: boolean, hasAudio: boolean, container: string, videoCodec?: string, height?: number, bitrate?: number, contentLength?: number, audioTrack?: { displayName?: string, audioIsDefault?: boolean } }
+
+/**
+ * Vídeos com dublagem automática do YouTube têm várias faixas de áudio com a MESMA qualidade (original
+ * + dublagens). Escolher só pelo bitrate pegava a dublagem (ex.: inglês no lugar do português). Fica
+ * com a faixa original ("... original" / audioIsDefault); vídeo com uma faixa só não muda nada.
+ */
+export function preferOriginalAudio<T extends YtFormat>(formats: readonly T[]): T[] {
+    const tracked = formats.filter(f => f.audioTrack)
+    if (!tracked.length) return [...formats]
+    const byName = formats.filter(f => /original/i.test(f.audioTrack?.displayName ?? ''))
+    if (byName.length) return byName
+    const byDefault = formats.filter(f => f.audioTrack?.audioIsDefault)
+    return byDefault.length ? byDefault : [...formats]
+}
+
+/** Melhor áudio (sem vídeo) da faixa original. */
+export function originalAudioFormat<T extends YtFormat>(formats: readonly T[], container?: string): T | undefined {
+    const audios = formats.filter(f => f.hasAudio && !f.hasVideo && (!container || f.container === container))
+    return preferOriginalAudio(audios).sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0))[0]
+}
+
+/** Idioma da faixa ("en-US.10" → "en"). */
+const trackCode = (f: YtFormat & { audioTrack?: { id?: string } }) => (f.audioTrack?.id ?? '').split(/[.\-_]/)[0].toLowerCase()
+
+/** Melhor áudio no idioma pedido (lang = código ISO, ex.: "en"); sem idioma, a faixa original. */
+export function languageAudioFormat<T extends YtFormat & { audioTrack?: { id?: string } }>(formats: readonly T[], lang?: string | null, container?: string): T | undefined {
+    if (!lang) return originalAudioFormat(formats, container)
+    return formats.filter(f => f.hasAudio && !f.hasVideo && (!container || f.container === container) && trackCode(f) === lang)
+        .sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0))[0]
+}
+
+/** Faixas de áudio de um vídeo (idioma, nome e se é a original). */
+export interface AudioTrackInfo { code: string, name: string, original: boolean }
+
+/** O vídeo não tem áudio no idioma pedido (available vazio = vídeo sem dublagens). */
+export class AudioLanguageUnavailableError extends Error {
+    constructor(public lang: string, public available: AudioTrackInfo[]) { super(`sem áudio em ${lang}`) }
+}
+
+export function audioTracksOf(formats: readonly (YtFormat & { audioTrack?: { id?: string } })[]): AudioTrackInfo[] {
+    const tracks = new Map<string, AudioTrackInfo>()
+    for (const f of formats) {
+        const code = trackCode(f)
+        if (!f.audioTrack || !code) continue
+        const original = /original/i.test(f.audioTrack.displayName ?? '') || !!f.audioTrack.audioIsDefault
+        const prev = tracks.get(code)
+        tracks.set(code, { code, name: f.audioTrack.displayName ?? code, original: original || !!prev?.original })
+    }
+    return [...tracks.values()]
+}
+
+/** Faixas do vídeo pelo ytdl-core; reserva: yt-dlp (campo language dos formatos). */
+export async function youtubeAudioTracks(videoId: string): Promise<AudioTrackInfo[]> {
+    try {
+        const info = await new Ytdl().getInfo(videoId)
+        return audioTracksOf(info.formats as unknown as (YtFormat & { audioTrack?: { id?: string } })[])
+    } catch {
+        const { stdout } = await ytDlp.run(['-J', '--no-warnings', '--skip-download', '--no-playlist', `https://www.youtube.com/watch?v=${videoId}`], 60_000)
+        const formats = (JSON.parse(stdout.toString('utf8')).formats ?? []) as { language?: string, format_note?: string, language_preference?: number, acodec?: string }[]
+        const tracks = new Map<string, AudioTrackInfo>()
+        for (const f of formats) {
+            const code = (f.language ?? '').split('-')[0].toLowerCase()
+            if (!code || f.acodec === 'none') continue
+            const original = /original/i.test(f.format_note ?? '') || (f.language_preference ?? 0) >= 10
+            tracks.set(code, { code, name: f.format_note ?? code, original: original || !!tracks.get(code)?.original })
+        }
+        return tracks.size > 1 ? [...tracks.values()] : []
+    }
+}
+
+/** Confere se o vídeo tem áudio no idioma pedido; se não tiver, AudioLanguageUnavailableError (com a lista). */
+export async function assertAudioLanguage(videoId: string, lang?: string | null): Promise<void> {
+    if (!lang) return
+    const tracks = await youtubeAudioTracks(videoId)
+    if (!tracks.some(t => t.code === lang)) throw new AudioLanguageUnavailableError(lang, tracks)
+}
+
+/** Filtro do yt-dlp para o áudio no idioma pedido (ou o original, que o yt-dlp já prefere). */
+const ytDlpAudio = (lang?: string | null) => lang ? `ba[ext=m4a][language^=${lang}]/ba[language^=${lang}]` : 'ba[ext=m4a]/ba/b'
 
 /** Tamanho do formato: o informado pelo YouTube ou estimado pelo bitrate × duração. */
 export function formatBytes(f: YtFormat, durationSec: number): number {
@@ -404,8 +485,8 @@ export function formatBytes(f: YtFormat, durationSec: number): number {
  * inclusive iPhone) em MP4 com a maior resolução até maxHeight cujo tamanho, somado ao áudio AAC,
  * caiba em maxBytes. Se nem a menor couber, fica com a menor.
  */
-export function pickYoutubeFormats<T extends YtFormat>(formats: readonly T[], durationSec: number, limits = ytLimits()): { video: T, audio: T } | null {
-    const audio = formats.filter(f => f.hasAudio && !f.hasVideo && f.container === 'mp4').sort((a, b) => (b.bitrate ?? 0) - (a.bitrate ?? 0))[0]
+export function pickYoutubeFormats<T extends YtFormat>(formats: readonly T[], durationSec: number, limits = ytLimits(), lang?: string | null): { video: T, audio: T } | null {
+    const audio = languageAudioFormat(formats, lang, 'mp4')
     const mp4Videos = formats.filter(f => f.hasVideo && !f.hasAudio && f.container === 'mp4' && (f.height ?? 0) <= limits.maxHeight)
     const h264 = mp4Videos.filter(f => /^avc1/i.test(f.videoCodec ?? ''))
     // Sem H.264 listado (raro): qualquer MP4, como antes
@@ -418,14 +499,15 @@ export function pickYoutubeFormats<T extends YtFormat>(formats: readonly T[], du
 }
 
 /** yt-dlp (reserva): mesmas regras em filtro de formato. */
-export function ytDlpVideoFormat(limits = ytLimits()): string {
+export function ytDlpVideoFormat(limits = ytLimits(), lang?: string | null): string {
     const mb = Math.floor(limits.maxBytes / 1024 / 1024)
     const h = limits.maxHeight
+    // Com idioma: o áudio tem que ser daquela faixa (sem cair num formato já com áudio de outro idioma)
+    const ba = lang ? `ba[ext=m4a][language^=${lang}]` : 'ba[ext=m4a]'
     return [
-        `bv*[vcodec^=avc1][ext=mp4][height<=${h}][filesize<?${Math.floor(mb * 0.85)}M]+ba[ext=m4a]`,
-        `bv*[vcodec^=avc1][ext=mp4][height<=720]+ba[ext=m4a]`,
-        `b[ext=mp4][height<=720]`,
-        'b',
+        `bv*[vcodec^=avc1][ext=mp4][height<=${h}][filesize<?${Math.floor(mb * 0.85)}M]+${ba}`,
+        `bv*[vcodec^=avc1][ext=mp4][height<=720]+${ba}`,
+        ...(lang ? [`bv*+ba[language^=${lang}]`] : [`b[ext=mp4][height<=720]`, 'b']),
     ].join('/')
 }
 
@@ -434,19 +516,23 @@ export function ytDlpVideoFormat(limits = ytLimits()): string {
  * entrega vídeo e áudio separados: os dois são baixados pelo ytdl-core e juntados com o ffmpeg
  * sem recodificar (qualidade original). Reserva: yt-dlp com as mesmas regras.
  */
-export async function youtubeVideo(videoId: string): Promise<Buffer> {
+export async function youtubeVideo(videoId: string, lang?: string | null): Promise<Buffer> {
     const videoPath = getTempPath('mp4'), audioPath = getTempPath('m4a'), outputPath = getTempPath('mp4')
     try {
         const yt = new Ytdl()
         const info = await yt.getInfo(videoId)
         const duration = Number(info.videoDetails.lengthSeconds) || 0
         const limits = ytLimits()
-        const chosen = pickYoutubeFormats(info.formats as unknown as (YtFormat & typeof info.formats[number])[], duration, limits)
+        const chosen = pickYoutubeFormats(info.formats as unknown as (YtFormat & typeof info.formats[number])[], duration, limits, lang)
+        if (!chosen && lang) throw new Error(`ytdl-core sem faixa ${lang}`)
         // Sem lista de formatos para escolher: deixa o ytdl-core escolher, com o mesmo teto de resolução
         const isMp4Video = (f: { hasVideo: boolean, hasAudio: boolean, container: string, height?: number }) => f.hasVideo && !f.hasAudio && f.container === 'mp4' && (f.height ?? 0) <= limits.maxHeight
         const [video, audio] = await Promise.all([
             streamToBuffer(yt.download(info, chosen ? { format: chosen.video } : { quality: 'highestvideo', filter: isMp4Video })),
-            streamToBuffer(yt.download(info, chosen ? { format: chosen.audio } : { quality: 'highestaudio', filter: { hasAudio: true, hasVideo: false, container: 'mp4' } })),
+            streamToBuffer(yt.download(info, chosen ? { format: chosen.audio } : (() => {
+                const original = originalAudioFormat(info.formats as unknown as (YtFormat & typeof info.formats[number])[], 'mp4')
+                return original ? { format: original } : { quality: 'highestaudio' as const, filter: { hasAudio: true, hasVideo: false, container: 'mp4' as const } }
+            })())),
         ])
         fs.writeFileSync(videoPath, video)
         fs.writeFileSync(audioPath, audio)
@@ -458,7 +544,7 @@ export async function youtubeVideo(videoId: string): Promise<Buffer> {
     } catch (err) {
         showConsoleLibraryError(err, 'youtubeVideo (ytdl-core)')
         try {
-            return await ytDlp.downloadToBuffer(['-f', ytDlpVideoFormat(), '--merge-output-format', 'mp4', '--no-playlist', `https://www.youtube.com/watch?v=${videoId}`], 'mp4')
+            return await ytDlp.downloadToBuffer(['-f', ytDlpVideoFormat(ytLimits(), lang), '--merge-output-format', 'mp4', '--no-playlist', `https://www.youtube.com/watch?v=${videoId}`], 'mp4')
         } catch (fallbackErr) {
             showConsoleLibraryError(fallbackErr, 'youtubeVideo (yt-dlp)')
             throw new Error(botTexts.library_error)
